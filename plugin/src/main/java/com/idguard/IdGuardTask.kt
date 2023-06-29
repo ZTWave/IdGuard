@@ -19,6 +19,9 @@ open class IdGuardTask @Inject constructor(
     //key raw ,value obfuscate
     private val layoutROMap = mutableMapOf<String, String>()
 
+    //name min and max length
+    private val nameLengthPair = Pair(4, 9)
+
     @TaskAction
     fun execute() {
         val layoutDirs = mutableListOf<File>()
@@ -30,28 +33,48 @@ open class IdGuardTask @Inject constructor(
         println(layoutDirs)
 
         val layoutDirFileTree = project.files(layoutDirs).asFileTree
+        val allObsNames = genAllLayoutFileObfuscateName(layoutDirFileTree.files.size)
         //混淆map生成
-        layoutDirFileTree.forEach { file ->
+        layoutDirFileTree.forEachIndexed { index, file ->
             println(file)
             val layoutFileName = file.name
             println("file name $layoutFileName")
             val fileParentPath = file.parentFile.absolutePath
-            val obfuscateName = genLayoutFileObfuscateName()
+            val obfuscateName = allObsNames[index]
             layoutROMap[file.absolutePath] =
                 fileParentPath + File.separator + obfuscateName + ".xml"
         }
         println(layoutROMap)
-        //混淆layout xml
+        //混淆layout xml里的layout引用
         layoutDirFileTree.forEach { file ->
-            val fileText = file.readText()
-            layoutROMap.forEach { raw, obfuscate ->
+            var fileText = file.readText()
+            layoutROMap.forEach { (raw, obfuscate) ->
                 val rawName = raw.getFileName()
                 val obfuscateName = obfuscate.getFileName()
-                fileText.replaceWords("@layout/$rawName", "@layout/$obfuscateName")
+//                println("$rawName -> $obfuscateName")
+                //@layout/activity_main
+                fileText = fileText.replaceWords("@layout/$rawName", "@layout/$obfuscateName")
             }
+//            println()
+//            println(file.name)
+//            println(fileText)
+//            println()
             file.writeText(fileText)
         }
+        //混淆layout名称
 
+
+    }
+
+    private fun genAllLayoutFileObfuscateName(size: Int): List<String> {
+        val nameSet = mutableSetOf<String>()
+        var count = 0
+        while (nameSet.size < size) {
+            nameSet.add(genLayoutFileObfuscateName())
+            count++
+        }
+        println("gen $size files used $count times")
+        return nameSet.toList()
     }
 
     /**
@@ -60,7 +83,7 @@ open class IdGuardTask @Inject constructor(
     fun String.getFileName(): String {
         val name = this.split(File.separator).lastOrNull()
             ?: throw RuntimeException("file path is error $this")
-        return name.split('.')[1]
+        return name.split('.')[0]
     }
 
     fun Project.findLayoutDirs(variantName: String) = findXmlDirs(variantName, "layout")
@@ -115,17 +138,16 @@ open class IdGuardTask @Inject constructor(
     }
 
     fun genLayoutFileObfuscateName(): String {
-        val nameLengthPair = Pair(4, 9)
         val dic = dic()
         val rNameLength = Random.nextInt(nameLengthPair.first, nameLengthPair.second + 1)
         val nameSb = StringBuilder("")
         while (nameSb.length < rNameLength) {
-            val cIndex = Random.nextInt(0, dic.length + 1)
+            val cIndex = Random.nextInt(0, dic.length)
             val c = dic[cIndex]
             if (nameSb.isEmpty() && numberAndLine.contains(c)) {
                 continue
             }
-            nameSb.append(dic.get(cIndex))
+            nameSb.append(dic[cIndex])
         }
         return nameSb.toString()
     }
@@ -136,6 +158,7 @@ open class IdGuardTask @Inject constructor(
         ignoreCase: Boolean = false
     ): String {
         var occurrenceIndex: Int = indexOf(oldValue, 0, ignoreCase)
+        println("replace $oldValue -> $newValue ocindex => $occurrenceIndex")
         // FAST PATH: no match
         if (occurrenceIndex < 0) return this
 
