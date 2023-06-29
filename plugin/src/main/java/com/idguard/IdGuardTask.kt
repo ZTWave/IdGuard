@@ -62,6 +62,14 @@ open class IdGuardTask @Inject constructor(
             file.writeText(fileText)
         }
         //混淆layout名称
+        val layoutFiles = layoutDirFileTree.files.toSet()
+        layoutFiles.forEach { file ->
+            val obfuscateFilePath = layoutROMap[file.absolutePath]
+                ?: throw RuntimeException("layout dir has changed !!!")
+            val obfuscateFile = File(obfuscateFilePath)
+            obfuscateFile.writeText(file.readText())
+            file.delete()
+        }
 
 
     }
