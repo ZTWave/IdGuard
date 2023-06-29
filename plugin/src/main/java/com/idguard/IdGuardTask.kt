@@ -30,7 +30,7 @@ open class IdGuardTask @Inject constructor(
                 layoutDirs.addAll(it.findLayoutDirs(variantName))
             }
         }
-        println(layoutDirs)
+        //println(layoutDirs)
 
         val layoutDirFileTree = project.files(layoutDirs).asFileTree
         val allObsNames = genAllLayoutFileObfuscateName(layoutDirFileTree.files.size)
@@ -44,9 +44,17 @@ open class IdGuardTask @Inject constructor(
             layoutROMap[file.absolutePath] =
                 fileParentPath + File.separator + obfuscateName + ".xml"
         }
-        println(layoutROMap)
+        //println(layoutROMap)
+
         //混淆layout xml里的layout引用
-        layoutDirFileTree.forEach { file ->
+        val needReplaceResFile = mutableListOf<File>()
+        project.rootProject.subprojects {
+            if(it.isAndroidProject()){
+                needReplaceResFile.addAll(it.findLayoutUsagesInRes(variantName))
+            }
+        }
+        val needReplaceResFileTree = project.files(needReplaceResFile).asFileTree
+        needReplaceResFileTree.forEach { file ->
             var fileText = file.readText()
             layoutROMap.forEach { (raw, obfuscate) ->
                 val rawName = raw.getFileName()
@@ -70,6 +78,7 @@ open class IdGuardTask @Inject constructor(
             obfuscateFile.writeText(file.readText())
             file.delete()
         }
+        //混淆java 或者 kotlin文件对layout引用
 
 
     }
@@ -95,6 +104,10 @@ open class IdGuardTask @Inject constructor(
     }
 
     fun Project.findLayoutDirs(variantName: String) = findXmlDirs(variantName, "layout")
+
+    fun Project.findLayoutUsagesInRes(variantName: String) =
+        findXmlDirs(variantName, "layout", "values")
+
     fun Project.findXmlDirs(variantName: String, vararg dirName: String): ArrayList<File> {
         return resDirs(variantName).flatMapTo(ArrayList()) { dir ->
             dir.listFiles { file, name ->
