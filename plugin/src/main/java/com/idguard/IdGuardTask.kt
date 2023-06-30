@@ -49,7 +49,7 @@ open class IdGuardTask @Inject constructor(
         //混淆layout xml里的layout引用
         val needReplaceResFile = mutableListOf<File>()
         project.rootProject.subprojects {
-            if(it.isAndroidProject()){
+            if (it.isAndroidProject()) {
                 needReplaceResFile.addAll(it.findLayoutUsagesInRes(variantName))
             }
         }
@@ -79,10 +79,20 @@ open class IdGuardTask @Inject constructor(
             file.delete()
         }
         //混淆java 或者 kotlin文件对layout引用
-
-
+        val javaFileTree = project.javaDirs(variantName)
+        project.files(javaFileTree).asFileTree.forEach { javaFile ->
+            var javaFileText = javaFile.readText()
+            layoutROMap.forEach { (raw, obfuscate) ->
+                val rawName = raw.getFileName()
+                val obfuscateName = obfuscate.getFileName()
+                javaFileText =
+                    javaFileText.replaceWords("R.layout.$rawName", "R.layout.$obfuscateName")
+            }
+            javaFile.writeText(javaFileText)
+        }
     }
 
+    //生成对应个数的随机名称
     private fun genAllLayoutFileObfuscateName(size: Int): List<String> {
         val nameSet = mutableSetOf<String>()
         var count = 0
@@ -90,12 +100,12 @@ open class IdGuardTask @Inject constructor(
             nameSet.add(genLayoutFileObfuscateName())
             count++
         }
-        println("gen $size files used $count times")
+        println("gen $size random names, used $count times loop")
         return nameSet.toList()
     }
 
     /**
-     * 通过文件的全路径获取文件名称
+     * 通过文件的绝对路径获取文件名称
      */
     fun String.getFileName(): String {
         val name = this.split(File.separator).lastOrNull()
@@ -136,6 +146,24 @@ open class IdGuardTask @Inject constructor(
             }
         }
         return resDirs
+    }
+
+    fun Project.javaDirs(variantName: String): List<File> {
+        val sourceSet = (extensions.getByName("android") as BaseExtension).sourceSets
+        val nameSet = mutableSetOf<String>()
+        nameSet.add("main")
+        if (isAndroidProject()) {
+            nameSet.addAll(variantName.splitWords())
+        }
+        val javaDirs = mutableListOf<File>()
+        sourceSet.names.forEach { name ->
+            if (nameSet.contains(name)) {
+                sourceSet.getByName(name).java.srcDirs.mapNotNullTo(javaDirs) {
+                    if (it.exists()) it else null
+                }
+            }
+        }
+        return javaDirs
     }
 
     fun Project.isAndroidProject() =
@@ -179,7 +207,7 @@ open class IdGuardTask @Inject constructor(
         ignoreCase: Boolean = false
     ): String {
         var occurrenceIndex: Int = indexOf(oldValue, 0, ignoreCase)
-        println("replace $oldValue -> $newValue ocindex => $occurrenceIndex")
+//        println("replace $oldValue -> $newValue ocindex => $occurrenceIndex")
         // FAST PATH: no match
         if (occurrenceIndex < 0) return this
 
