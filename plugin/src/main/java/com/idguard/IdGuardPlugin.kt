@@ -14,7 +14,7 @@ class IdGuardPlugin : Plugin<Project> {
                     it.uppercaseChar()
                 }
                 it.tasks.create("LayoutGuard$vName", LayoutNameGuardTask::class.java, vName)
-                it.tasks.create("IdGuard$vName", LayoutNameGuardTask::class.java, vName)
+                it.tasks.create("IdGuard$vName", IdGuardTask::class.java, vName)
             }
         }
     }
