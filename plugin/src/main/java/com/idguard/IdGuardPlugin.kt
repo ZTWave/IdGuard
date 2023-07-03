@@ -13,7 +13,7 @@ class IdGuardPlugin : Plugin<Project> {
                 val vName = variant.name.replaceFirstChar {
                     it.uppercaseChar()
                 }
-                it.tasks.create("idGuard$vName", IdGuardTask::class.java, vName)
+                it.tasks.create("LayoutGuard$vName", LayoutNameGuardTask::class.java, vName)
             }
         }
     }
