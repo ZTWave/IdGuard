@@ -4,7 +4,6 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.TaskAction
 import java.io.File
 import javax.inject.Inject
-import kotlin.random.Random
 
 open class LayoutNameGuardTask @Inject constructor(
     private val variantName: String,
@@ -14,16 +13,8 @@ open class LayoutNameGuardTask @Inject constructor(
         group = "guard"
     }
 
-
-    private val numberAndLine = "1234567890_"
-    private val charsLatter = "abcdefghijklmnopqrstuvwxyz"
-    private val charsUpper = charsLatter.uppercase()
-
     //key raw ,value obfuscate
     private val layoutROMap = mutableMapOf<String, String>()
-
-    //name min and max length
-    private val nameLengthPair = Pair(4, 9)
 
     @TaskAction
     fun execute() {
@@ -36,7 +27,7 @@ open class LayoutNameGuardTask @Inject constructor(
         //println(layoutDirs)
 
         val layoutDirFileTree = project.files(layoutDirs).asFileTree
-        val allObsNames = genAllLayoutFileObfuscateName(layoutDirFileTree.files.size)
+        val allObsNames = RandomNameHelper.genNames(layoutDirFileTree.files.size)
         //混淆map生成
         layoutDirFileTree.forEachIndexed { index, file ->
             println(file)
@@ -93,39 +84,5 @@ open class LayoutNameGuardTask @Inject constructor(
             }
             javaFile.writeText(javaFileText)
         }
-    }
-
-    //生成对应个数的随机名称
-    private fun genAllLayoutFileObfuscateName(size: Int): List<String> {
-        val nameSet = mutableSetOf<String>()
-        var count = 0
-        while (nameSet.size < size) {
-            nameSet.add(genLayoutFileObfuscateName())
-            count++
-        }
-        println("gen $size random names, used $count times loop")
-        return nameSet.toList()
-    }
-
-    private fun dic() = run {
-        val dicSb = StringBuilder(charsLatter)
-        dicSb.append(charsUpper)
-        dicSb.append(numberAndLine)
-        dicSb.toString()
-    }
-
-    private fun genLayoutFileObfuscateName(): String {
-        val dic = dic()
-        val rNameLength = Random.nextInt(nameLengthPair.first, nameLengthPair.second + 1)
-        val nameSb = StringBuilder("")
-        while (nameSb.length < rNameLength) {
-            val cIndex = Random.nextInt(0, dic.length)
-            val c = dic[cIndex]
-            if (nameSb.isEmpty() && numberAndLine.contains(c)) {
-                continue
-            }
-            nameSb.append(dic[cIndex])
-        }
-        return nameSb.toString()
     }
 }
