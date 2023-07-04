@@ -5,12 +5,15 @@ import org.gradle.api.tasks.TaskAction
 import java.io.File
 import javax.inject.Inject
 
+
 open class IdGuardTask @Inject constructor(
     private val variantName: String,
 ) : DefaultTask() {
     init {
         group = "guard"
     }
+
+    private val mappingName = "id_guard_mapping.text"
 
     //raw , obfuscate
     private val idNameMap = mutableMapOf<String, String>()
@@ -54,6 +57,11 @@ open class IdGuardTask @Inject constructor(
             }
             javaFile.writeText(javaText)
         }
+
+        val readableIdMap = idNameMap.map {
+            "R.id.${it.key}" to "R.id.${it.value}"
+        }.toMap()
+        MappingOutputHelper.write(project, mappingName, readableIdMap)
     }
 
     private fun findXMLIds(file: File): Set<String> {
