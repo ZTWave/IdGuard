@@ -36,7 +36,7 @@ open class IdGuardTask @Inject constructor(
         idNameMap.putAll(map.toMap())
         println(idNameMap)
 
-        //替换xml中的id
+        //替换xml中的id 这里可能有遗漏的比如 style中的id
         layoutDirFileTree.forEach {
             var fileText = it.readText()
             idNameMap.forEach { (raw, obfuscate) ->
@@ -44,6 +44,15 @@ open class IdGuardTask @Inject constructor(
                     .replaceWords("@id/$raw", "@id/$obfuscate")
             }
             it.writeText(fileText)
+        }
+
+        val javaDir = project.javaDirs(variantName)
+        project.files(javaDir).asFileTree.forEach { javaFile ->
+            var javaText = javaFile.readText()
+            idNameMap.forEach { (raw, obfuscate) ->
+                javaText = javaText.replaceWords("R.id.$raw", "R.id.$obfuscate")
+            }
+            javaFile.writeText(javaText)
         }
     }
 
