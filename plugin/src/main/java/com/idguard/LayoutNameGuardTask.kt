@@ -16,6 +16,8 @@ open class LayoutNameGuardTask @Inject constructor(
     //key raw ,value obfuscate
     private val layoutROMap = mutableMapOf<String, String>()
 
+    private val mappingName = "layout_guard_mapping.text"
+
     @TaskAction
     fun execute() {
         val layoutDirs = mutableListOf<File>()
@@ -84,5 +86,11 @@ open class LayoutNameGuardTask @Inject constructor(
             }
             javaFile.writeText(javaFileText)
         }
+
+        val readableMap = layoutROMap.map {
+            "R.layout.${it.key.getFileName()}" to "R.layout.${it.value.getFileName()}"
+        }.toMap()
+
+        MappingOutputHelper.write(project, mappingName, readableMap)
     }
 }
