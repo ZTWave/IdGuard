@@ -37,7 +37,7 @@ open class IdGuardTask @Inject constructor(
             key to obNames[index]
         }
         idNameMap.putAll(map.toMap())
-        println(idNameMap)
+        //println(idNameMap)
 
         //替换xml中的id 这里可能有遗漏的比如 style中的id
         layoutDirFileTree.forEach {

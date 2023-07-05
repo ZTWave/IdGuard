@@ -32,9 +32,9 @@ open class LayoutNameGuardTask @Inject constructor(
         val allObsNames = RandomNameHelper.genNames(layoutDirFileTree.files.size)
         //混淆map生成
         layoutDirFileTree.forEachIndexed { index, file ->
-            println(file)
+            //println(file)
             val layoutFileName = file.name
-            println("file name $layoutFileName")
+            //println("file name $layoutFileName")
             val fileParentPath = file.parentFile.absolutePath
             val obfuscateName = allObsNames[index]
             layoutROMap[file.absolutePath] =
