@@ -14,7 +14,6 @@ dependencies {
 
     compileOnly gradleApi()
     compileOnly 'com.android.tools.build:gradle:7.4.1'
-    api 'org.codehaus.groovy:groovy-xml:3.0.9'
 }
 
 gradlePlugin {
@@ -29,7 +28,7 @@ gradlePlugin {
 
 publishing {
     publications {
-        idGuard(MavenPublication) {
+        release(MavenPublication) {
             groupId = 'com.github.ztwave'
             artifactId = 'idguard'
             version = "$version"
