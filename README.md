@@ -1,5 +1,7 @@
 # IdGuard
 
+[![](https://jitpack.io/v/ZTWave/IdGurad.svg)](https://jitpack.io/#ZTWave/IdGurad)
+
 #### 介绍
 Android Layout xml name and id obfuscate gradle plugin.
 
