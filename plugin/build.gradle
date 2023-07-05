@@ -29,8 +29,8 @@ gradlePlugin {
 publishing {
     publications {
         release(MavenPublication) {
-            groupId = 'com.github.ztwave'
-            artifactId = 'idguard'
+            groupId = 'com.github.ZTWave'
+            artifactId = 'IdGurad'
             version = "$version"
             from components.java
         }

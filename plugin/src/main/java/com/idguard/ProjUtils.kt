@@ -4,12 +4,12 @@ import com.android.build.gradle.BaseExtension
 import org.gradle.api.Project
 import java.io.File
 
-fun Project.findLayoutDirs(variantName: String) = findXmlDirs(variantName, "layout")
+fun Project.findLayoutDirs(variantName: String) = findDirsInRes(variantName, "layout")
 
 fun Project.findLayoutUsagesInRes(variantName: String) =
-    findXmlDirs(variantName, "layout", "values")
+    findDirsInRes(variantName, "layout", "values")
 
-fun Project.findXmlDirs(variantName: String, vararg dirName: String): ArrayList<File> {
+fun Project.findDirsInRes(variantName: String, vararg dirName: String): ArrayList<File> {
     return resDirs(variantName).flatMapTo(ArrayList()) { dir ->
         dir.listFiles { file, name ->
             //过滤res目录下xxx目录
@@ -60,3 +60,9 @@ fun Project.javaDirs(variantName: String): List<File> {
 fun Project.isAndroidProject() =
     plugins.hasPlugin("com.android.application")
         || plugins.hasPlugin("com.android.library")
+
+//返回manifest文件目录,有且仅有一个
+fun Project.manifestFile(): File {
+    val sourceSet = (extensions.getByName("android") as BaseExtension).sourceSets
+    return sourceSet.getByName("main").manifest.srcFile
+}
