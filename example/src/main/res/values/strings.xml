@@ -41,4 +41,12 @@
     quis tincidunt nisl eleifend. Cras bibendum enim a justo luctus vestibulum. Fusce dictum libero
     quis erat maximus, vitae volutpat diam dignissim.
   </string>
+
+  <string-array name="str_array">
+    <item>str1</item>
+    <item>str2</item>
+    <item>str3</item>
+    <item>str4</item>
+  </string-array>
+
 </resources>
