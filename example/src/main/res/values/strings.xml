@@ -49,4 +49,6 @@
     <item>str4</item>
   </string-array>
 
+  <string name="str_array">str</string>
+
 </resources>
