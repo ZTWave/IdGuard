@@ -1,4 +1,4 @@
-package com.idguard
+package com.idguard.utils
 
 import java.io.File
 

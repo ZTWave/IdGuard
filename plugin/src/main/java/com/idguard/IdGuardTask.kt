@@ -1,5 +1,11 @@
 package com.idguard
 
+import com.idguard.utils.MappingOutputHelper
+import com.idguard.utils.RandomNameHelper
+import com.idguard.utils.findLayoutDirs
+import com.idguard.utils.isAndroidProject
+import com.idguard.utils.javaDirs
+import com.idguard.utils.replaceWords
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.TaskAction
 import java.io.File
