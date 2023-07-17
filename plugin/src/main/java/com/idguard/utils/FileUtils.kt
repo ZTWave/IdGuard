@@ -7,8 +7,7 @@ import java.io.File
  * @return .9.png
  */
 fun File.getExtensionName(): String {
-    val a = name.replace(this.getRealName(), "")
-    return a
+    return name.replace(getRealName(), "")
 }
 
 /**
