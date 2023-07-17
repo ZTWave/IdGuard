@@ -30,7 +30,7 @@ publishing {
     publications {
         release(MavenPublication) {
             groupId = 'com.github.ZTWave'
-            artifactId = 'IdGurad'
+            artifactId = 'IdGuard'
             version = "$version"
             from components.java
         }
