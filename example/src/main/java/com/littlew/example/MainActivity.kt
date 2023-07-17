@@ -12,6 +12,8 @@ import androidx.recyclerview.widget.RecyclerView
 import butterknife.BindView
 import butterknife.ButterKnife
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.littlew.example.pa.DataA
+import com.littlew.example.pb.ObTest
 
 class MainActivity : AppCompatActivity() {
 
@@ -41,6 +43,14 @@ class MainActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = RAdapter(stringArray.toList())
         }
+
+        CPTest.ptr()
+
+        DataA().test()
+
+        ObTest.OV_VALUE
+
+        ObTest.obFun()
     }
 
     class RAdapter(private val list: List<String>) : RecyclerView.Adapter<RVH>() {
