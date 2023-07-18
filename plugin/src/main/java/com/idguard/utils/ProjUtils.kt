@@ -66,3 +66,28 @@ fun Project.manifestFile(): File {
     val sourceSet = (extensions.getByName("android") as BaseExtension).sourceSets
     return sourceSet.getByName("main").manifest.srcFile
 }
+
+fun Project.findPackageName(): String {
+    val namespace = findNameSpaceInGradle()
+    val packageName = findPackageInManifest()
+    return if (namespace == "") {
+        packageName
+    } else {
+        namespace
+    }
+}
+
+fun Project.findPackageInManifest(): String {
+    val manifestPackageRegex = Regex("package=\".+\"")
+    val packageStr =
+        manifestPackageRegex.find(manifestFile().readText())?.groupValues?.first() ?: return ""
+    return packageStr.removePrefix("package=").removeSurrounding("\"")
+}
+
+fun Project.findNameSpaceInGradle(): String {
+    val buildGradleRegex = Regex("namespace .+")
+    val namespaceStr =
+        buildGradleRegex.find(buildFile.readText())?.groupValues?.first() ?: return ""
+    val namespace = namespaceStr.removePrefix("namespace").trim()
+    return namespace.removeSurrounding("\'").removeSurrounding("\"")
+}
