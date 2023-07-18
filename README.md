@@ -33,10 +33,11 @@ plugins {
 1. `LayoutGuard` : 可以将`layout`文件进行随机命名并更新引用
 2. `IdGuard` : 可以将`view`的`id`进行重命名并更新引用
 3. `ResGuard` : 可以把 `mipmap` `drawable` `string` 中的 资源文件进行随机命名并更新引用
+4. `ClassGuarad` : 可以把`java`文件夹中的所有`java`文件和对应得类进行重命名并更新引用
 
 每个 `task` 执行过后会在根目录下输出`mapping`文件，记得及时备份，以防日后查找需要
 
-![GradleTask](https://pic.imgdb.cn/item/64a542e81ddac507cc932105.jpg)
+![GradleTask](https://pic.imgdb.cn/item/64b62c311ddac507ccff507b.jpg)
 
 #### 感谢
 
