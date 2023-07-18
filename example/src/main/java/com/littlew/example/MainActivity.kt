@@ -14,6 +14,7 @@ import butterknife.ButterKnife
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.littlew.example.pa.DataA
 import com.littlew.example.pb.ObTest
+import com.littlew.example.pb.ObTest.OV_IM_VALUE
 
 class MainActivity : AppCompatActivity() {
 
@@ -49,6 +50,8 @@ class MainActivity : AppCompatActivity() {
         DataA().test()
 
         ObTest.OV_VALUE
+
+        OV_IM_VALUE
 
         ObTest.obFun()
     }
