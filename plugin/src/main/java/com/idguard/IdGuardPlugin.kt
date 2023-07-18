@@ -16,6 +16,7 @@ class IdGuardPlugin : Plugin<Project> {
                 it.tasks.create("LayoutGuard$vName", LayoutNameGuardTask::class.java, vName)
                 it.tasks.create("IdGuard$vName", IdGuardTask::class.java, vName)
                 it.tasks.create("ResGuard$vName", ResGuardTask::class.java, vName)
+                it.tasks.create("ClassGuard$vName", ClassGuardTask::class.java, vName)
             }
         }
     }
