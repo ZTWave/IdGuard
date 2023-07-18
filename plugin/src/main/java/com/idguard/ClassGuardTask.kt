@@ -1,6 +1,8 @@
 package com.idguard
 
 import com.idguard.modal.ClazzInfo
+import com.idguard.utils.MappingOutputHelper
+import com.idguard.utils.findLayoutDirs
 import com.idguard.utils.javaDirs
 import com.idguard.utils.manifestFile
 import com.idguard.utils.replaceWords
@@ -20,6 +22,8 @@ open class ClassGuardTask @Inject constructor(
     private val fileNameMap = mutableMapOf<String, ClazzInfo>()
     private val manifestPackageRegex = Regex("package=\".+\"")
     private val buildGradleRegex = Regex("namespace .+")
+
+    private val mappingName = "class_guard_mapping.text"
 
     /**
      * only for java source file
@@ -64,10 +68,30 @@ open class ClassGuardTask @Inject constructor(
             val obfuscate = info.packageName + "." + info.obfuscateClazzName
             manifestContent = manifestContent.replaceWords(raw, obfuscate)
                 .replaceWords(raw.replace(packagename, ""), obfuscate.replace(packagename, ""))
-
         }
 
         manifest.writeText(manifestContent)
+
+        val layoutDirs = project.findLayoutDirs(variantName)
+        val layoutDirFileTree = project.files(layoutDirs).asFileTree
+
+        layoutDirFileTree.forEach {
+            var content = it.readText()
+            fileNameMap.forEach { (filePath, info) ->
+                val raw = info.packageName + "." + info.rawClazzName
+                val obfuscate = info.packageName + "." + info.obfuscateClazzName
+                content = content.replaceWords(raw, obfuscate)
+            }
+            it.writeText(content)
+        }
+
+        val outputMap = fileNameMap.map {
+            val info = it.value
+            val raw = info.packageName + "." + info.rawClazzName
+            val obfuscate = info.packageName + "." + info.obfuscateClazzName
+            raw to obfuscate
+        }.toMap()
+        MappingOutputHelper.write(project, mappingName, outputMap)
     }
 
     private fun findPackageName(): String {
