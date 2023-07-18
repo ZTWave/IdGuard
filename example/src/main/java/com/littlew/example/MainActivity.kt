@@ -15,6 +15,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.littlew.example.pa.DataA
 import com.littlew.example.pb.ObTest
 import com.littlew.example.pb.ObTest.OV_IM_VALUE
+import com.littlew.example.pc.ATxtCusView
 
 class MainActivity : AppCompatActivity() {
 
@@ -25,6 +26,9 @@ class MainActivity : AppCompatActivity() {
 
     @BindView(R.id.recycler_view)
     lateinit var recyclerView: RecyclerView
+
+    @BindView(R.id.donine_text)
+    lateinit var textView: ATxtCusView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         WindowCompat.setDecorFitsSystemWindows(window, false)
