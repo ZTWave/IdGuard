@@ -42,4 +42,10 @@ public class SecondActivity extends AppCompatActivity {
         return new DataA();
     }
 
+    static class Inner {
+        private void i() {
+
+        }
+    }
+
 }
