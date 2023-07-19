@@ -16,7 +16,7 @@ public class SecondActivity extends AppCompatActivity {
     }
 
     //public
-    void i() {
+    public void i() {
 
     }
 
