@@ -58,21 +58,24 @@ open class ClassGuardTask @Inject constructor(
     }
 
     private fun obfuscateJavaFile(javaFileTree: FileTree) {
-        javaFileTree.forEach {
+        javaFileTree.forEach { file ->
             val clazzInfo =
-                fileNameMap[it.absolutePath] ?: throw RuntimeException("file tree has changed")
-            var fileContent = it.readText()
-            fileNameMap.forEach { (filePath, clazzinfo) ->
-                fileContent =
-                    fileContent.replaceWords(clazzinfo.rawClazzName, clazzinfo.obfuscateClazzName)
-                        .replaceWords(
-                            "import ${clazzinfo.packageName}.${clazzinfo.rawClazzName}",
-                            "import ${clazzinfo.packageName}.${clazzinfo.obfuscateClazzName}"
-                        )
+                fileNameMap[file.absolutePath] ?: throw RuntimeException("file tree has changed")
+            var fileContent = file.readText()
+            fileNameMap.forEach nameForEach@{ (filePath, clazzinfo) ->
+                if (!clazzInfo.isThisClazzImported(file)) {
+                    return@nameForEach
+                }
+                fileContent = fileContent
+                    .replaceWords(clazzinfo.rawClazzName, clazzinfo.obfuscateClazzName)
+                    .replaceWords(
+                        "import ${clazzinfo.packageName}.${clazzinfo.rawClazzName}",
+                        "import ${clazzinfo.packageName}.${clazzinfo.obfuscateClazzName}"
+                    )
             }
             val newFile = File(clazzInfo.obfuscatePath)
             newFile.writeText(fileContent)
-            it.delete()
+            file.delete()
         }
     }
 
