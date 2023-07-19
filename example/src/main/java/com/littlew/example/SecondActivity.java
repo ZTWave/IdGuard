@@ -48,4 +48,10 @@ public class SecondActivity extends AppCompatActivity {
         }
     }
 
+    class Inner2 {
+        private void j() {
+
+        }
+    }
+
 }
