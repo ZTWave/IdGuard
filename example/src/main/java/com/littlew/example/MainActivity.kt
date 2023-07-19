@@ -58,6 +58,8 @@ class MainActivity : AppCompatActivity() {
         OV_IM_VALUE
 
         ObTest.obFun()
+
+        SecondActivity().i()
     }
 
     class RAdapter(private val list: List<String>) : RecyclerView.Adapter<RVH>() {
