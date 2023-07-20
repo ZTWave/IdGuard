@@ -72,6 +72,17 @@ public class MainActivity extends AppCompatActivity {
         new SecondActivity.Inner();
     }
 
+    //类的签名一致 报错
+    /*private void onCreate(@Nullable Bundle savedInstanceState){
+
+    }*/
+
+    static class Inner {
+        private void i() {
+
+        }
+    }
+
     class RAdapter extends RecyclerView.Adapter<RVH> {
 
         private ArrayList<String> list = new ArrayList<String>();

@@ -1,26 +1,11 @@
 package com.idguard.modal
 
-class FunInfo {
+data class FunInfo(
+    val modifier: List<String> = emptyList(),
 
-    constructor(funContent: String) {
-        analyze(funContent)
-    }
+    val name: String = "",
 
-    var modifier: String = ""
+    val returnType: String = "",
 
-    var name: String = ""
-
-    var returnType: String = ""
-
-    var params: MutableList<String> = mutableListOf()
-
-    private fun analyze(funContent: String) {
-
-
-
-    }
-
-    override fun toString(): String {
-        return super.toString()
-    }
-}
+    val params: List<String> = emptyList(),
+)

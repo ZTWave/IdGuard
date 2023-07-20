@@ -1,16 +1,10 @@
 package com.idguard
 
 import com.idguard.modal.ClazzInfo
-import com.idguard.utils.MappingOutputHelper
-import com.idguard.utils.findLayoutDirs
-import com.idguard.utils.findPackageName
 import com.idguard.utils.javaDirs
-import com.idguard.utils.manifestFile
-import com.idguard.utils.replaceWords
+import com.idguard.utils.parser
 import org.gradle.api.DefaultTask
-import org.gradle.api.file.FileTree
 import org.gradle.api.tasks.TaskAction
-import java.io.File
 import javax.inject.Inject
 
 open class ClassGuardTask @Inject constructor(
@@ -21,7 +15,7 @@ open class ClassGuardTask @Inject constructor(
         group = "guard"
     }
 
-    private val fileNameMap = mutableMapOf<String, ClazzInfo>()
+    private val clazzInfoList = mutableListOf<ClazzInfo>()
     private val mappingName = "class_guard_mapping.text"
 
     /**
@@ -32,23 +26,30 @@ open class ClassGuardTask @Inject constructor(
         val javaFile = project.javaDirs(variantName)
         val javaFileTree = project.files(javaFile).asFileTree
         javaFileTree.forEach {
-            fileNameMap[it.absolutePath] = ClazzInfo(it)
+            clazzInfoList.addAll(it.parser())
         }
 
+        clazzInfoList.forEach {
+            println(it)
+            println()
+        }
+
+        //FIXME open this comment
+
         //java file rename and re-import
-        obfuscateJavaFile(javaFileTree)
+        //obfuscateJavaFile(javaFileTree)
 
         //manifest 内容替换
-        updateManifest()
+        //updateManifest()
 
         //替换layout中的自定义view
-        updateLayoutXml()
+        //updateLayoutXml()
 
-        outputMapping()
+        //outputMapping()
     }
 
-    private fun outputMapping() {
-        val outputMap = fileNameMap.map {
+    /*private fun outputMapping() {
+        val outputMap = clazzInfoList.map {
             val info = it.value
             val raw = info.packageName + "." + info.rawClazzName
             val obfuscate = info.packageName + "." + info.obfuscateClazzName
@@ -60,12 +61,9 @@ open class ClassGuardTask @Inject constructor(
     private fun obfuscateJavaFile(javaFileTree: FileTree) {
         javaFileTree.forEach { file ->
             val clazzInfo =
-                fileNameMap[file.absolutePath] ?: throw RuntimeException("file tree has changed")
+                clazzInfoList[file.absolutePath] ?: throw RuntimeException("file tree has changed")
             var fileContent = file.readText()
-            fileNameMap.forEach nameForEach@{ (filePath, clazzinfo) ->
-                if (!clazzInfo.isThisClazzImported(file)) {
-                    return@nameForEach
-                }
+            clazzInfoList.forEach nameForEach@{ (filePath, clazzinfo) ->
                 fileContent = fileContent
                     .replaceWords(clazzinfo.rawClazzName, clazzinfo.obfuscateClazzName)
                     .replaceWords(
@@ -85,7 +83,7 @@ open class ClassGuardTask @Inject constructor(
 
         layoutDirFileTree.forEach {
             var content = it.readText()
-            fileNameMap.forEach { (filePath, info) ->
+            clazzInfoList.forEach { (filePath, info) ->
                 val raw = info.packageName + "." + info.rawClazzName
                 val obfuscate = info.packageName + "." + info.obfuscateClazzName
                 content = content.replaceWords(raw, obfuscate)
@@ -100,13 +98,13 @@ open class ClassGuardTask @Inject constructor(
         //R path
         val packagename = project.findPackageName()
 
-        fileNameMap.forEach { (filePath, info) ->
+        clazzInfoList.forEach { (filePath, info) ->
             val raw = info.packageName + "." + info.rawClazzName
             val obfuscate = info.packageName + "." + info.obfuscateClazzName
             manifestContent = manifestContent.replaceWords(raw, obfuscate)
                 .replaceWords(raw.replace(packagename, ""), obfuscate.replace(packagename, ""))
         }
         manifest.writeText(manifestContent)
-    }
+    }*/
 
 }
