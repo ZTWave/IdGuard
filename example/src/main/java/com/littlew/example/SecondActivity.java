@@ -13,6 +13,7 @@ public class SecondActivity extends AppCompatActivity {
     public void onCreate(@Nullable Bundle savedInstanceState, @Nullable PersistableBundle persistentState) {
         super.onCreate(savedInstanceState, persistentState);
         i();
+        new ExClass().e();
     }
 
     //public
@@ -48,10 +49,17 @@ public class SecondActivity extends AppCompatActivity {
         }
     }
 
+    //can not use from other class
     class Inner2 {
         private void j() {
 
         }
     }
 
+}
+
+class ExClass {
+    public void e() {
+
+    }
 }

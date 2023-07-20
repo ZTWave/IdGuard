@@ -68,6 +68,8 @@ public class MainActivity extends AppCompatActivity {
         ObTest.obfun();
 
         new SecondActivity().i();
+
+        new SecondActivity.Inner();
     }
 
     class RAdapter extends RecyclerView.Adapter<RVH> {
