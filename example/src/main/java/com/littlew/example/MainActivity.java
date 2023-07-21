@@ -10,14 +10,15 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.littlew.example.base.BaseActivity;
 import com.littlew.example.pa.DataA;
 import com.littlew.example.pb.ObTest;
 import com.littlew.example.pc.ATxtCusView;
+import com.littlew.example.pd.OInterface;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,7 +27,7 @@ import java.util.List;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends BaseActivity implements OInterface {
 
     private FloatingActionButton fab;
 
@@ -70,6 +71,16 @@ public class MainActivity extends AppCompatActivity {
         new SecondActivity().i();
 
         new SecondActivity.Inner();
+    }
+
+    @Override
+    protected void doOverride() {
+        super.doOverride();
+    }
+
+    @Override
+    public void o() {
+        //do somethding
     }
 
     //类的签名一致 报错
