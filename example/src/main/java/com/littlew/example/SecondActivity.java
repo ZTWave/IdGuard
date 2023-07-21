@@ -1,5 +1,7 @@
 package com.littlew.example;
 
+import static com.littlew.example.pb.ObTest.InnerClass.OV_VALUE_INNER;
+
 import android.os.Bundle;
 import android.os.PersistableBundle;
 
@@ -7,6 +9,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.littlew.example.pa.DataA;
+import com.littlew.example.pb.ObTest.InnerClass;
+import com.littlew.example.pf.ia.D;
 
 public class SecondActivity extends AppCompatActivity {
     @Override
@@ -14,6 +18,13 @@ public class SecondActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState, persistentState);
         i();
         new ExClass().e();
+
+        D d = new D();
+
+        //比较与MainActivity中的使用形式
+        String f = InnerClass.OV_VALUE_INNER;
+
+        String g = OV_VALUE_INNER;
     }
 
     //public

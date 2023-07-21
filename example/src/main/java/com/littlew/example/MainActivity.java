@@ -67,6 +67,8 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
 
         String j = OV_IM_VALUE;
 
+        String k = ObTest.InnerClass.OV_VALUE_INNER;
+
         ObTest.obfun();
 
         new SecondActivity().i();
@@ -76,6 +78,10 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
         int a1 = a;
 
         int b1 = b;
+
+        com.littlew.example.pf.ia.C c = new com.littlew.example.pf.ia.C();
+
+
     }
 
     @Override

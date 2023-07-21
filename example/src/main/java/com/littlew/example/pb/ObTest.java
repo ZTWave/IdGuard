@@ -8,4 +8,13 @@ public class ObTest {
 
     public static void obfun() {
     }
+
+    public static class InnerClass {
+        public static final String OV_VALUE_INNER = "value_inner";
+
+
+        public static class ThirdInnerClass {
+            public static final String OV_VALUE_INNER_THIRD = "value_inner_third";
+        }
+    }
 }
