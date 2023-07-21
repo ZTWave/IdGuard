@@ -19,6 +19,7 @@ import com.littlew.example.pa.DataA;
 import com.littlew.example.pb.ObTest;
 import com.littlew.example.pc.ATxtCusView;
 import com.littlew.example.pd.OInterface;
+import com.littlew.example.pd.OtInterface;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,7 +28,7 @@ import java.util.List;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-public class MainActivity extends BaseActivity implements OInterface {
+public class MainActivity extends BaseActivity implements OInterface, OtInterface {
 
     private FloatingActionButton fab;
 
@@ -80,7 +81,12 @@ public class MainActivity extends BaseActivity implements OInterface {
 
     @Override
     public void o() {
-        //do somethding
+        //do something
+    }
+
+    @Override
+    public void f() {
+        //do something
     }
 
     //类的签名一致 报错
