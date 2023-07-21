@@ -89,6 +89,10 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
         //do something
     }
 
+    void d() {
+
+    }
+
     //类的签名一致 报错
     /*private void onCreate(@Nullable Bundle savedInstanceState){
 
