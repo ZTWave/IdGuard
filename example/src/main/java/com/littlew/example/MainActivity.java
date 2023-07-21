@@ -72,6 +72,10 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
         new SecondActivity().i();
 
         new SecondActivity.Inner();
+
+        int a1 = a;
+
+        int b1 = b;
     }
 
     @Override

@@ -4,7 +4,13 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class BaseActivity extends AppCompatActivity {
 
-    protected void doOverride(){
+    public int a = 0;
+
+    protected int b = 1;
+
+    private int c = 2;
+
+    protected void doOverride() {
 
     }
 }
