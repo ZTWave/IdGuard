@@ -28,7 +28,7 @@ import java.util.List;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-public class MainActivity extends BaseActivity implements OInterface, OtInterface {
+public class MainActivity extends BaseActivity implements OInterface, OtInterface, AInterface {
 
     private FloatingActionButton fab;
 

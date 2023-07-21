@@ -1,9 +1,11 @@
 package com.littlew.example;
 
-class NamelessClass{
+interface AInterface {
+
 }
 
-interface AInterface {
+interface BInterface{
+
 }
 
 class BClass {
