@@ -1,6 +1,7 @@
 package com.idguard
 
 import com.idguard.modal.ClazzInfo
+import com.idguard.modal.MethodInfo
 import com.idguard.utils.javaDirs
 import com.idguard.utils.parser
 import org.gradle.api.DefaultTask
@@ -37,24 +38,26 @@ open class ClassGuardTask @Inject constructor(
         identityClazzNodes()
         println("class info extend and implement analyze finished.")
 
-        clazzInfoList.forEach {
-            println(
-                "${it.rawClazzName} extend ${it.extendNode?.rawClazzName ?: ""} implements ${
-                    it.implNodes.map { imple -> imple.rawClazzName }
-                }"
-            )
-            println("method")
-            val methodPrint = it.methodList.map { me -> "${me.name} -> ${me.obfuscateName}" }
-            println(methodPrint)
-            println("fileds")
-            val filedsPrint =
-                it.fieldList.map { field -> "${field.name} -> ${field.obfuscateName}" }
-            println(filedsPrint)
-            println()
-        }
-
         println("start fill override fun obfuscate name...")
+        //find no obfuscate override method name
+        traversalAllNode()
+        println("fill override fun obfuscate name finished.")
 
+        /*clazzInfoList.forEach {
+          println(
+              "${it.rawClazzName} extend ${it.extendNode?.rawClazzName ?: ""} implements ${
+                  it.implNodes.map { imple -> imple.rawClazzName }
+              }"
+          )
+          println("method")
+          val methodPrint = it.methodList.map { me -> "${me.name} -> ${me.obfuscateName}" }
+          println(methodPrint)
+          println("fileds")
+          val filedsPrint =
+              it.fieldList.map { field -> "${field.name} -> ${field.obfuscateName}" }
+          println(filedsPrint)
+          println()
+      }*/
 
         //FIXME open this comment
 
@@ -68,6 +71,45 @@ open class ClassGuardTask @Inject constructor(
         //updateLayoutXml()
 
         //outputMapping()
+    }
+
+    private fun traversalAllNode() {
+        clazzInfoList.forEach { clazzInfo ->
+            val overrideMethods = clazzInfo.methodList.filter { it.isOverride }
+            if (overrideMethods.isEmpty()) {
+                return@forEach
+            }
+            //parent node methods expect override
+            val parentMethods = mutableListOf<MethodInfo>()
+            preTraversal(clazzInfo, parentMethods)
+            println()
+            println("base -> ${clazzInfo.packageName}.${clazzInfo.rawClazzName} parent nodes method except override -> ${parentMethods.map { it.name }}")
+            clazzInfo.methodList.forEach { method ->
+                val find = parentMethods.find { it.isSameFun(method) }
+                find?.let {
+                    method.obfuscateName = it.obfuscateName
+                }
+            }
+        }
+    }
+
+    private fun preTraversal(
+        rootNode: ClazzInfo,
+        methodResult: MutableList<MethodInfo>
+    ) {
+        val nodes = mutableListOf<ClazzInfo>()
+        nodes.addAll(rootNode.implNodes.toMutableList())
+        rootNode.extendNode?.let { nodes.add(it) }
+
+        println("base -> ${rootNode.packageName}.${rootNode.rawClazzName} nodes -> ${nodes.map { it.rawClazzName }}")
+        if (nodes.isEmpty()) {
+            return
+        }
+        val methods = nodes.flatMap { it.methodList }.filter { !it.isOverride }
+        methodResult.addAll(methods)
+        nodes.forEach {
+            preTraversal(it, methodResult)
+        }
     }
 
     /**

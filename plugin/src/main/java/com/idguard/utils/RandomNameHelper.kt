@@ -38,7 +38,6 @@ class RandomNameHelper {
                 nameSet.add(genAName(pair.first, pair.second, allLetter, isFirstLetter))
                 count++
             }
-            println("gen $size random names, used $count times loop")
             return nameSet.toList()
         }
 
