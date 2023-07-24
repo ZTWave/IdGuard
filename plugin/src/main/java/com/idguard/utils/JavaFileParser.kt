@@ -5,7 +5,7 @@ import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.idguard.modal.ClazzInfo
 import com.idguard.modal.FieldInfo
-import com.idguard.modal.FunInfo
+import com.idguard.modal.MethodInfo
 import java.io.File
 
 fun File.parser(): List<ClazzInfo> {
@@ -24,27 +24,39 @@ fun File.parser(): List<ClazzInfo> {
             val rawPath = absolutePath
             val obfuscateClazzName = RandomNameHelper.genClassName(Pair(4, 8))
 
+            /**
+             * attention random is not safety, in some cases may generate same names!!.
+             */
             val methods = classOrInterfaceDeclaration.methods.map { declaration ->
-                FunInfo(
+                val isOverride = declaration.annotations.find {
+                    it.nameAsString.contains(
+                        "override",
+                        true
+                    )
+                } != null
+                val obfuscateName = if (isOverride) {
+                    ""
+                } else {
+                    RandomNameHelper.genNames(1, Pair(4, 12), false, true).first()
+                }
+                MethodInfo(
                     modifier = declaration.modifiers.map { it.keyword.name },
                     name = declaration.nameAsString,
                     returnType = declaration.typeAsString,
                     params = declaration.parameters.map { "${it.type} ${it.name}" },
-                    isOverride = declaration.annotations.find {
-                        it.nameAsString.contains(
-                            "override",
-                            true
-                        )
-                    } != null
+                    isOverride = isOverride,
+                    obfuscateName = obfuscateName
                 )
             }
 
             val fields = classOrInterfaceDeclaration.fields.map { declaration ->
                 val varb = declaration.variables.first.get()
+                val obfuscateName = RandomNameHelper.genNames(1, Pair(2, 8), false, true).first()
                 FieldInfo(
                     modifier = declaration.modifiers.map { it.keyword.name },
                     name = varb.nameAsString,
-                    type = varb.type.asString()
+                    type = varb.type.asString(),
+                    obfuscateName = obfuscateName
                 )
             }
 

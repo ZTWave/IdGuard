@@ -26,7 +26,7 @@ data class ClazzInfo(
     /**
      * 混淆后的类名称
      */
-    val obfuscateClazzName: String = "",
+    var obfuscateClazzName: String = "",
     /**
      * 参数集合
      */
@@ -34,7 +34,7 @@ data class ClazzInfo(
     /**
      * 方法集合
      */
-    val methodList: List<FunInfo> = emptyList(),
+    val methodList: List<MethodInfo> = emptyList(),
     /**
      * 被嵌套的那个类
      */
@@ -55,7 +55,7 @@ data class ClazzInfo(
     /**
      * 实现了哪个接口的节点
      */
-    val implNode: ClazzInfo? = null,
+    val implNodes: MutableList<ClazzInfo> = mutableListOf(),
 
     var isInnerClass: Boolean = false,
 
@@ -77,4 +77,30 @@ data class ClazzInfo(
      * class 内容
      */
     val bodyInfo: String,
-)
+) {
+    fun isExtendClass(checkingInfo: ClazzInfo): Boolean {
+        if (extendName.isEmpty()) {
+            return false
+        }
+        if (extendName.split(".").contains(checkingInfo.rawClazzName)) {
+            if (this.imports.contains(checkingInfo.packageName) || this.packageName == checkingInfo.packageName) {
+                return true
+            }
+        }
+        return false
+    }
+
+    fun isImplementInterface(checkingInfo: ClazzInfo): Boolean {
+        if (implName.isEmpty()) {
+            return false
+        }
+        this.implName.forEach { implementName ->
+            if (implementName.contains(checkingInfo.rawClazzName)) {
+                if (this.imports.find { it.contains(checkingInfo.packageName) } != null || this.packageName == checkingInfo.packageName) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+}

@@ -16,6 +16,8 @@ open class ClassGuardTask @Inject constructor(
     }
 
     private val clazzInfoList = mutableListOf<ClazzInfo>()
+    private val funNameMapping = mutableMapOf<String, String>()
+
     private val mappingName = "class_guard_mapping.text"
 
     /**
@@ -30,17 +32,29 @@ open class ClassGuardTask @Inject constructor(
             clazzInfoList.addAll(it.parser())
         }
         println("class info parent nested class analyze finished.")
-        println("start find class extend and implements node...")
-        clazzInfoList.forEach { classInfo ->
-            if (classInfo.extendName.isNotEmpty() || classInfo.implName.isNotEmpty()){
 
-            }
-        }
+        println("start find class extend and implements node...")
+        identityClazzNodes()
+        println("class info extend and implement analyze finished.")
 
         clazzInfoList.forEach {
-            println(it)
+            println(
+                "${it.rawClazzName} extend ${it.extendNode?.rawClazzName ?: ""} implements ${
+                    it.implNodes.map { imple -> imple.rawClazzName }
+                }"
+            )
+            println("method")
+            val methodPrint = it.methodList.map { me -> "${me.name} -> ${me.obfuscateName}" }
+            println(methodPrint)
+            println("fileds")
+            val filedsPrint =
+                it.fieldList.map { field -> "${field.name} -> ${field.obfuscateName}" }
+            println(filedsPrint)
             println()
         }
+
+        println("start fill override fun obfuscate name...")
+
 
         //FIXME open this comment
 
@@ -54,6 +68,28 @@ open class ClassGuardTask @Inject constructor(
         //updateLayoutXml()
 
         //outputMapping()
+    }
+
+    /**
+     * 标识类或者接口的第一级继承和实现的关系
+     */
+    private fun identityClazzNodes() {
+        clazzInfoList.forEach { needFillInfo ->
+            val extendName = needFillInfo.extendName
+            val implNames = needFillInfo.implName
+            if (extendName.isEmpty() && implNames.isEmpty()) {
+                //无继承和接口实现
+                return@forEach
+            }
+            clazzInfoList.forEach { checkingInfo ->
+                if (needFillInfo.isExtendClass(checkingInfo)) {
+                    needFillInfo.extendNode = checkingInfo
+                }
+                if (needFillInfo.isImplementInterface(checkingInfo)) {
+                    needFillInfo.implNodes.add(checkingInfo)
+                }
+            }
+        }
     }
 
     /*private fun outputMapping() {
