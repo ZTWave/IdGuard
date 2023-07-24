@@ -99,6 +99,15 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
         //do something
     }
 
+    public void f(String a) {
+
+    }
+
+    //error here
+    /*private void f(){
+
+    }*/
+
     void d() {
 
     }
