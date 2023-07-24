@@ -1,10 +1,10 @@
 package com.littlew.example;
 
-interface AInterface {
+interface AInterface extends BInterface {
 
 }
 
-interface BInterface{
+interface BInterface {
 
 }
 
