@@ -25,8 +25,16 @@ open class ClassGuardTask @Inject constructor(
     fun execute() {
         val javaFile = project.javaDirs(variantName)
         val javaFileTree = project.files(javaFile).asFileTree
+
         javaFileTree.forEach {
             clazzInfoList.addAll(it.parser())
+        }
+        println("class info parent nested class analyze finished.")
+        println("start find class extend and implements node...")
+        clazzInfoList.forEach { classInfo ->
+            if (classInfo.extendName.isNotEmpty() || classInfo.implName.isNotEmpty()){
+
+            }
         }
 
         clazzInfoList.forEach {

@@ -11,32 +11,31 @@ import java.io.File
 fun File.parser(): List<ClazzInfo> {
     val infoList = mutableListOf<ClazzInfo>()
     val compilationUnit: CompilationUnit = JavaParser().parse(this).result.get()
+
+    val rawFileName = getRealName()
+
     compilationUnit.findAll(ClassOrInterfaceDeclaration::class.java)
         .forEach { classOrInterfaceDeclaration ->
             val clazzname = classOrInterfaceDeclaration.name.toString()
             val isInnerClass = classOrInterfaceDeclaration.isInnerClass
             val isNestedClass = classOrInterfaceDeclaration.isNestedType
-
             val isInterface = classOrInterfaceDeclaration.isInterface
 
-            println("inner class $clazzname isInnerClass -> $isInnerClass isNestedClass -> $isNestedClass isInterface -> $isInterface")
-            println("")
-
             val rawPath = absolutePath
-            //文件名称 对应的也是应该java中存在的class
-            val rawClazzName = getRealName()
-            val extensionName = getExtensionName()
             val obfuscateClazzName = RandomNameHelper.genClassName(Pair(4, 8))
-            val obfuscatePath =
-                parentFile.absolutePath + File.separator + obfuscateClazzName + extensionName
-            val packageName = rawPath.getPackagePath()
 
             val methods = classOrInterfaceDeclaration.methods.map { declaration ->
                 FunInfo(
                     modifier = declaration.modifiers.map { it.keyword.name },
                     name = declaration.nameAsString,
                     returnType = declaration.typeAsString,
-                    params = declaration.parameters.map { "${it.type} ${it.name}" }
+                    params = declaration.parameters.map { "${it.type} ${it.name}" },
+                    isOverride = declaration.annotations.find {
+                        it.nameAsString.contains(
+                            "override",
+                            true
+                        )
+                    } != null
                 )
             }
 
@@ -49,33 +48,63 @@ fun File.parser(): List<ClazzInfo> {
                 )
             }
 
+            var packageName = ""
+
+            val imports = mutableListOf<String>()
+            val fileLines = this.readLines()
+            fileLines.forEach {
+                if (it.startsWith("import ")) {
+                    imports.add(it.removePrefix("import ").removeSuffix(";"))
+                }
+                if (it.startsWith("package ")) {
+                    packageName = it.removePrefix("package ").removeSuffix(";")
+                }
+            }
+
+            val implNames = classOrInterfaceDeclaration.implementedTypes.map { it.nameAsString }
+
+            val extendName =
+                classOrInterfaceDeclaration.extendedTypes.map { it.nameAsString }.firstOrNull()
+                    ?: ""
+
             val info = ClazzInfo(
                 packageName = packageName,
                 rawPath = rawPath,
                 rawClazzName = clazzname,
                 obfuscateClazzName = obfuscateClazzName,
-                obfuscatePath = obfuscatePath,
                 methodList = methods,
                 fieldList = fields,
                 isInnerClass = isInnerClass,
                 isNestedClass = isNestedClass,
                 isInterface = isInterface,
+                belongFile = this,
+                imports = imports,
+                implName = implNames,
+                extendName = extendName,
+                bodyInfo = classOrInterfaceDeclaration.tokenRange.get().toString()
             )
             infoList.add(info)
         }
 
+    infoList.forEach { info ->
+
+        if (!info.isNestedClass && !info.isInnerClass) {
+            val obfuscatePath =
+                parentFile.absolutePath + File.separator + info.obfuscateClazzName + info.belongFile.getExtensionName()
+            info.obfuscatePath = obfuscatePath
+            return@forEach
+        }
+        //不用担心引用一个java文件中不在java文件名相同类名外部的那个类 编写过程中会报错
+        val matchNodes =
+            infoList.filter { it.bodyInfo.contains(info.bodyInfo) }.sortedBy { it.bodyInfo.length }
+        //如果是嵌入的 从小到大 为 自身 -> 一级嵌套 
+        val parentInfoNode = matchNodes.getOrNull(1)
+        parentInfoNode?.let {
+            info.parentNode = it
+            info.obfuscatePath = it.obfuscatePath
+        }
+    }
+
     return infoList
-
-
-    /*rawPath = file.absolutePath
-
-    rawClazzName = file.getRealName()
-
-    val extensionName = file.getExtensionName()
-
-    obfuscateClazzName = RandomNameHelper.genClassName(Pair(4, 8))
-    obfuscatePath =
-        file.parentFile.absolutePath + File.separator + obfuscateClazzName + extensionName
-    packageName = rawPath.getPackagePath()*/
 
 }

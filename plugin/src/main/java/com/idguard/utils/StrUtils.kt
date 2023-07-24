@@ -70,7 +70,9 @@ fun String.splitWords(): List<String> {
 
 /**
  * 获取对应文件的package路径
+ * 已废弃
  */
+@Deprecated("use file read line to find lines start with package")
 fun String.getPackagePath(): String {
     val file = File(this)
     if (file.isDirectory) {
