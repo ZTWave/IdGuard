@@ -15,8 +15,7 @@ dependencies {
     compileOnly gradleApi()
     compileOnly 'com.android.tools.build:gradle:7.4.1'
 
-    implementation "com.github.javaparser:javaparser-core:3.25.4"
-
+    implementation 'com.thoughtworks.qdox:qdox:2.0.3'
 }
 
 gradlePlugin {

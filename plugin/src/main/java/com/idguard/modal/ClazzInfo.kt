@@ -1,5 +1,6 @@
 package com.idguard.modal
 
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import java.io.File
 
 /**
@@ -7,6 +8,10 @@ import java.io.File
  * interface 和 class 类
  */
 data class ClazzInfo(
+    /**
+     * 修饰符
+     */
+    val modifier: List<String> = emptyList(),
     /**
      * 包名称
      */
@@ -43,7 +48,7 @@ data class ClazzInfo(
     /**
      * 所继承的类的名称
      */
-    val extendName: String = "",
+    val extendName: String ,
     /**
      * 继承的那个节点
      */
@@ -63,11 +68,12 @@ data class ClazzInfo(
 
     var isInterface: Boolean = false,
 
+    var isEnum: Boolean = false,
+
     /**
      * 所属的文件
      */
-    val belongFile: File,
-
+    //val belongFile: File,
     /**
      * 引入的包 不包括正文代码中以 com.a.b.c 形式引入的
      */
@@ -78,29 +84,14 @@ data class ClazzInfo(
      */
     val bodyInfo: String,
 ) {
-    fun isExtendClass(checkingInfo: ClazzInfo): Boolean {
-        if (extendName.isEmpty()) {
-            return false
+    fun getClassContent(): String {
+        val sb = StringBuilder()
+        sb.appendLine("package $packageName;")
+        val imports = imports.map { "import $it;" }
+        imports.forEach {
+            sb.appendLine(it)
         }
-        if (extendName.split(".").contains(checkingInfo.rawClazzName)) {
-            if (this.imports.contains(checkingInfo.packageName) || this.packageName == checkingInfo.packageName) {
-                return true
-            }
-        }
-        return false
-    }
-
-    fun isImplementInterface(checkingInfo: ClazzInfo): Boolean {
-        if (implName.isEmpty()) {
-            return false
-        }
-        this.implName.forEach { implementName ->
-            if (implementName.contains(checkingInfo.rawClazzName)) {
-                if (this.imports.find { it.contains(checkingInfo.packageName) } != null || this.packageName == checkingInfo.packageName) {
-                    return true
-                }
-            }
-        }
-        return false
+        sb.append(bodyInfo)
+        return sb.toString()
     }
 }

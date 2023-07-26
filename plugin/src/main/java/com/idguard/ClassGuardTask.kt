@@ -4,8 +4,10 @@ import com.idguard.modal.ClazzInfo
 import com.idguard.modal.MethodInfo
 import com.idguard.utils.javaDirs
 import com.idguard.utils.parser
+import com.thoughtworks.qdox.JavaProjectBuilder
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.TaskAction
+import java.io.File
 import javax.inject.Inject
 
 open class ClassGuardTask @Inject constructor(
@@ -15,6 +17,9 @@ open class ClassGuardTask @Inject constructor(
     init {
         group = "guard"
     }
+
+    private val javaSrcPath =
+        project.projectDir.absolutePath + File.separator + "src" + File.separator + "main" + File.separator + "java" + File.separator
 
     private val clazzInfoList = mutableListOf<ClazzInfo>()
     private val funNameMapping = mutableMapOf<String, String>()
@@ -27,37 +32,43 @@ open class ClassGuardTask @Inject constructor(
     @TaskAction
     fun execute() {
         val javaFile = project.javaDirs(variantName)
-        val javaFileTree = project.files(javaFile).asFileTree
-
-        javaFileTree.forEach {
-            clazzInfoList.addAll(it.parser())
+        println("src path -> $javaSrcPath")
+        val javaSrc = File(javaSrcPath)
+        if (!javaSrc.exists()) {
+            throw RuntimeException("java src -> $javaFile is not exits")
         }
-        println("class info parent nested class analyze finished.")
+        val javaProjectBuilder = JavaProjectBuilder().apply {
+            addSourceTree(javaSrc)
+        }
+        println("class size -> ${javaProjectBuilder.classes.size} module size -> ${javaProjectBuilder.modules.size}")
+        javaProjectBuilder.classes.forEach {
+            clazzInfoList.add(it.parser())
+        }
+//        println("class info parent nested class analyze finished.")
 
-        println("start find class extend and implements node...")
-        identityClazzNodes()
-        println("class info extend and implement analyze finished.")
+        //println("start find class extend and implements node...")
+        //identityClazzNodes()
+        //println("class info extend and implement analyze finished.")
 
-        println("start fill override fun obfuscate name...")
+//        println("start fill override fun obfuscate name...")
         //find no obfuscate override method name
-        traversalAllNode()
-        println("fill override fun obfuscate name finished.")
+        //fillMethodObInfo()
+//        println("fill override fun obfuscate name finished.")
 
-        /*clazzInfoList.forEach {
-          println(
-              "${it.rawClazzName} extend ${it.extendNode?.rawClazzName ?: ""} implements ${
-                  it.implNodes.map { imple -> imple.rawClazzName }
-              }"
-          )
-          println("method")
-          val methodPrint = it.methodList.map { me -> "${me.name} -> ${me.obfuscateName}" }
-          println(methodPrint)
-          println("fileds")
-          val filedsPrint =
-              it.fieldList.map { field -> "${field.name} -> ${field.obfuscateName}" }
-          println(filedsPrint)
-          println()
-      }*/
+//        println("start obfuscate...")
+        //startObfuscateFile()
+
+
+        clazzInfoList.forEach {
+            println("${it.modifier} ${it.rawClazzName} extend ${it.extendName} implements ${it.implName}")
+            val methodPrint = it.methodList.map { me -> "${me.name} -> ${me.obfuscateName}" }
+            println("method -> $methodPrint")
+            val fieldsPrint =
+                it.fieldList.map { field -> "${field.name} -> ${field.obfuscateName}" }
+            println("fields -> $fieldsPrint")
+            println(it.getClassContent())
+            println()
+        }
 
         //FIXME open this comment
 
@@ -73,7 +84,20 @@ open class ClassGuardTask @Inject constructor(
         //outputMapping()
     }
 
-    private fun traversalAllNode() {
+    private fun findUpperNodes(rootNode: ClazzInfo, nodes: MutableList<ClazzInfo>) {
+        val firstLayerNodes = mutableListOf<ClazzInfo>()
+        firstLayerNodes.addAll(rootNode.implNodes.toMutableList())
+        rootNode.extendNode?.let { firstLayerNodes.add(it) }
+        if (firstLayerNodes.isEmpty()) {
+            return
+        }
+        nodes.addAll(firstLayerNodes)
+        firstLayerNodes.forEach {
+            findUpperNodes(it, nodes)
+        }
+    }
+
+    private fun fillMethodObInfo() {
         clazzInfoList.forEach { clazzInfo ->
             val overrideMethods = clazzInfo.methodList.filter { it.isOverride }
             if (overrideMethods.isEmpty()) {
@@ -81,7 +105,7 @@ open class ClassGuardTask @Inject constructor(
             }
             //parent node methods expect override
             val parentMethods = mutableListOf<MethodInfo>()
-            preTraversal(clazzInfo, parentMethods)
+            findUpperNodeMethods(clazzInfo, parentMethods)
             println()
             println("base -> ${clazzInfo.packageName}.${clazzInfo.rawClazzName} parent nodes method except override -> ${parentMethods.map { it.name }}")
             clazzInfo.methodList.forEach { method ->
@@ -93,7 +117,7 @@ open class ClassGuardTask @Inject constructor(
         }
     }
 
-    private fun preTraversal(
+    private fun findUpperNodeMethods(
         rootNode: ClazzInfo,
         methodResult: MutableList<MethodInfo>
     ) {
@@ -108,7 +132,7 @@ open class ClassGuardTask @Inject constructor(
         val methods = nodes.flatMap { it.methodList }.filter { !it.isOverride }
         methodResult.addAll(methods)
         nodes.forEach {
-            preTraversal(it, methodResult)
+            findUpperNodeMethods(it, methodResult)
         }
     }
 
@@ -122,14 +146,6 @@ open class ClassGuardTask @Inject constructor(
             if (extendName.isEmpty() && implNames.isEmpty()) {
                 //无继承和接口实现
                 return@forEach
-            }
-            clazzInfoList.forEach { checkingInfo ->
-                if (needFillInfo.isExtendClass(checkingInfo)) {
-                    needFillInfo.extendNode = checkingInfo
-                }
-                if (needFillInfo.isImplementInterface(checkingInfo)) {
-                    needFillInfo.implNodes.add(checkingInfo)
-                }
             }
         }
     }
