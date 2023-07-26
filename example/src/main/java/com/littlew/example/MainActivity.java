@@ -41,6 +41,8 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
     @BindView(R.id.donine_text)
     ATxtCusView textView;
 
+    public int a = 0;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -82,6 +84,7 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
         com.littlew.example.pf.ia.C c = new com.littlew.example.pf.ia.C();
 
 
+        int a = 3;
     }
 
     @Override

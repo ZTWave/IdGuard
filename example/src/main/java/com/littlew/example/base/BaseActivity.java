@@ -11,6 +11,10 @@ public class BaseActivity extends AppCompatActivity {
     private int c = 2;
 
     protected void doOverride() {
+        c = 4;
+    }
 
+    private void c() {
+        int a = 2;
     }
 }
