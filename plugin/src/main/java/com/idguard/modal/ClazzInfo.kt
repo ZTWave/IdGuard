@@ -1,6 +1,7 @@
 package com.idguard.modal
 
 import com.thoughtworks.qdox.model.JavaClass
+import java.io.File
 
 /**
  * 目前只针对java文件
@@ -31,7 +32,7 @@ data class ClazzInfo(
     /**
      * 全限定的名称
      */
-    val fullyQualifiedName :String = "",
+    val fullyQualifiedName: String = "",
     /**
      * 混淆后的类名称
      */
@@ -73,7 +74,7 @@ data class ClazzInfo(
     /**
      * 所属的文件
      */
-    //val belongFile: File,
+    var belongFile: File? = null,
     /**
      * 引入的包 不包括正文代码中以 com.a.b.c 形式引入的
      */
