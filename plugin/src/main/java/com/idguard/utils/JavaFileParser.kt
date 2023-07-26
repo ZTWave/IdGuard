@@ -7,9 +7,10 @@ import com.thoughtworks.qdox.model.JavaClass
 
 fun JavaClass.parser(): ClazzInfo {
     val clazzname = this.name
-    val isInnerClass = this.isInner
     val isInterface = this.isInterface
     val isEnum = this.isEnum
+
+    val parentJavaSource = parentSource
 
     val obfuscateClazzName = RandomNameHelper.genClassName(Pair(4, 8))
 
@@ -60,14 +61,15 @@ fun JavaClass.parser(): ClazzInfo {
         modifier = modifier,
         packageName = packageName,
         rawClazzName = clazzname,
+        fullyQualifiedName = fullyQualifiedName,
         obfuscateClazzName = obfuscateClazzName,
         methodList = methods,
         fieldList = fields,
-        isInnerClass = isInnerClass,
         isInterface = isInterface,
         isEnum = isEnum,
-        implName = implNames,
-        extendName = extendName,
+        implFullQualifiedName = implNames,
+        extendFullQualifiedName = extendName,
+        imports = parentJavaSource.imports,
         bodyInfo = codeBlock,
     )
 }

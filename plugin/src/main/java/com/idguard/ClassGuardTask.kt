@@ -44,29 +44,31 @@ open class ClassGuardTask @Inject constructor(
         javaProjectBuilder.classes.forEach {
             clazzInfoList.add(it.parser())
         }
-//        println("class info parent nested class analyze finished.")
+        println("class info parent nested class analyze finished.")
 
-        //println("start find class extend and implements node...")
-        //identityClazzNodes()
-        //println("class info extend and implement analyze finished.")
+        println("start find class extend and implements node...")
+        relatedClazzNodes(javaProjectBuilder)
+        println("class info extend and implement analyze finished.")
 
-//        println("start fill override fun obfuscate name...")
+        println("start fill override fun obfuscate name...")
         //find no obfuscate override method name
-        //fillMethodObInfo()
-//        println("fill override fun obfuscate name finished.")
+        fillMethodObInfo()
+        println("fill override fun obfuscate name finished.")
 
 //        println("start obfuscate...")
         //startObfuscateFile()
 
 
         clazzInfoList.forEach {
-            println("${it.modifier} ${it.rawClazzName} extend ${it.extendName} implements ${it.implName}")
+            println("${it.modifier} ${it.rawClazzName} extend ${it.extendNode?.fullyQualifiedName} implements ${it.implNodes.map { node -> node.fullyQualifiedName }}")
+            println("parent -> ${it.parentNode?.rawClazzName ?: "null"} ")
+            println("fullyQualifiedName -> ${it.fullyQualifiedName}")
             val methodPrint = it.methodList.map { me -> "${me.name} -> ${me.obfuscateName}" }
             println("method -> $methodPrint")
             val fieldsPrint =
                 it.fieldList.map { field -> "${field.name} -> ${field.obfuscateName}" }
             println("fields -> $fieldsPrint")
-            println(it.getClassContent())
+            println(it.bodyInfo)
             println()
         }
 
@@ -137,15 +139,40 @@ open class ClassGuardTask @Inject constructor(
     }
 
     /**
-     * 标识类或者接口的第一级继承和实现的关系
+     * 标识类的嵌套类或者接口的第一级继承和实现的关系
      */
-    private fun identityClazzNodes() {
-        clazzInfoList.forEach { needFillInfo ->
-            val extendName = needFillInfo.extendName
-            val implNames = needFillInfo.implName
-            if (extendName.isEmpty() && implNames.isEmpty()) {
-                //无继承和接口实现
-                return@forEach
+    private fun relatedClazzNodes(javaProjectBuilder: JavaProjectBuilder) {
+        //establishing extend and implements node relation
+        javaProjectBuilder.classes.forEach { javaClass ->
+            //this time checking node
+            val node = clazzInfoList.find { it.isCorrespondingJavaClass(javaClass) } ?: return@forEach
+
+            //establishing nested class node relation
+            val nestedClass = javaClass.nestedClasses.toList()
+            if (nestedClass.isNotEmpty()) {
+                nestedClass.forEach { childJavaClass ->
+                    val childNode =
+                        clazzInfoList.find { it.isCorrespondingJavaClass(childJavaClass) }
+                    childNode?.parentNode = node
+                }
+            }
+
+            //find extend node
+            val superClass = javaClass.superJavaClass
+            //may be null
+            superClass?.run {
+                val extendNode = clazzInfoList.find { it.isCorrespondingJavaClass(this) }
+                //assignment this node's extend node
+                node.extendNode = extendNode
+            }
+
+            //find implement nodes
+            val implements = javaClass.interfaces.toList()
+            if (implements.isNotEmpty()) {
+                val implementNode = implements.mapNotNull { implementJavaClass ->
+                    clazzInfoList.find { it.isCorrespondingJavaClass(implementJavaClass) }
+                }
+                node.implNodes.addAll(implementNode)
             }
         }
     }

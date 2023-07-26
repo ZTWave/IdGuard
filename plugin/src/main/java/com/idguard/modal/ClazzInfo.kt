@@ -1,7 +1,6 @@
 package com.idguard.modal
 
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
-import java.io.File
+import com.thoughtworks.qdox.model.JavaClass
 
 /**
  * 目前只针对java文件
@@ -28,6 +27,11 @@ data class ClazzInfo(
      * 原始类名称
      */
     val rawClazzName: String = "",
+
+    /**
+     * 全限定的名称
+     */
+    val fullyQualifiedName :String = "",
     /**
      * 混淆后的类名称
      */
@@ -48,7 +52,7 @@ data class ClazzInfo(
     /**
      * 所继承的类的名称
      */
-    val extendName: String ,
+    val extendFullQualifiedName: String,
     /**
      * 继承的那个节点
      */
@@ -56,15 +60,11 @@ data class ClazzInfo(
     /**
      * 实现了哪个接口的name
      */
-    val implName: List<String> = emptyList(),
+    val implFullQualifiedName: List<String> = emptyList(),
     /**
      * 实现了哪个接口的节点
      */
     val implNodes: MutableList<ClazzInfo> = mutableListOf(),
-
-    var isInnerClass: Boolean = false,
-
-    var isNestedClass: Boolean = false,
 
     var isInterface: Boolean = false,
 
@@ -81,6 +81,7 @@ data class ClazzInfo(
 
     /**
      * class 内容
+     * 带有import package 内容
      */
     val bodyInfo: String,
 ) {
@@ -93,5 +94,12 @@ data class ClazzInfo(
         }
         sb.append(bodyInfo)
         return sb.toString()
+    }
+
+    /**
+     * 是对应的 javaClass
+     */
+    fun isCorrespondingJavaClass(javaClass: JavaClass): Boolean {
+        return fullyQualifiedName == javaClass.fullyQualifiedName
     }
 }
