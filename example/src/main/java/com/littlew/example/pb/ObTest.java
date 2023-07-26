@@ -17,4 +17,8 @@ public class ObTest {
             public static final String OV_VALUE_INNER_THIRD = "value_inner_third";
         }
     }
+
+    public static class Inner2Class{
+
+    }
 }
