@@ -41,4 +41,4 @@ plugins {
 
 #### 感谢
 
-[XmlClassGuard](http://https://github.com/liujingxing/XmlClassGuard)
+[XmlClassGuard](https://github.com/liujingxing/XmlClassGuard),[qbox](https://github.com/paul-hammant/qdox)
