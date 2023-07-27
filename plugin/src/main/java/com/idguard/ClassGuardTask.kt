@@ -2,11 +2,10 @@ package com.idguard
 
 import com.idguard.modal.ClazzInfo
 import com.idguard.modal.MethodInfo
-import com.idguard.utils.javaDirs
-import com.idguard.utils.parser
-import com.idguard.utils.replaceWords
+import com.idguard.utils.*
 import com.thoughtworks.qdox.JavaProjectBuilder
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.FileTree
 import org.gradle.api.tasks.TaskAction
 import java.io.File
 import javax.inject.Inject
@@ -33,6 +32,7 @@ open class ClassGuardTask @Inject constructor(
     @TaskAction
     fun execute() {
         val javaFile = project.javaDirs(variantName)
+        val javaFilesTree = project.files(javaFile).asFileTree
         println("src path -> $javaSrcPath")
         val javaSrc = File(javaSrcPath)
         if (!javaSrc.exists()) {
@@ -42,7 +42,7 @@ open class ClassGuardTask @Inject constructor(
             addSourceTree(javaSrc)
         }
         println("class size -> ${javaProjectBuilder.classes.size} module size -> ${javaProjectBuilder.modules.size}")
-        fillClazzInfoBelongFile(javaProjectBuilder)
+        fillClazzInfoBelongFile(javaProjectBuilder, javaFilesTree)
         println("class info parent nested class analyze finished.")
 
         println("start find class extend and implements node...")
@@ -50,43 +50,69 @@ open class ClassGuardTask @Inject constructor(
         println("class info extend and implement analyze finished.")
 
         println("start fill override fun obfuscate name...")
-        //find no obfuscate override method name
+        //find no obfuscate override method name and fill it
         fillMethodObInfo()
         println("fill override fun obfuscate name finished.")
 
-//        println("start obfuscate...")
-//        obfuscateJavaFile(project.fileTree(javaFile))
+        println("start fill obfuscated fully qualified name...")
+        fillObfuscateFullyQualifiedName()
+        println("fill obfuscated fully qualified name finished.")
 
+        println("start obfuscate...")
+        obfuscateJavaFile(javaFilesTree)
+        //manifest 内容替换
+        updateManifest()
 
+        //替换layout中的自定义view
+        updateLayoutXml()
+
+        printInfos()
+
+        //outputMapping()
+    }
+
+    private fun printInfos() {
         clazzInfoList.forEach {
             println("${it.modifier} ${it.rawClazzName} extend ${it.extendNode?.fullyQualifiedName} implements ${it.implNodes.map { node -> node.fullyQualifiedName }}")
             println("parent -> ${it.parentNode?.rawClazzName ?: "null"} ")
             println("packageName -> ${it.packageName}")
-            println("fullyQualifiedName -> ${it.fullyQualifiedName}")
+            println("fullyQualifiedName -> ${it.fullyQualifiedName} obfuscateQualifiedName -> ${it.fullyObfuscateQualifiedName}")
+            println("file -> ${it.belongFile} belongFileObfuscateName -> ${it.belongFileObfuscateName}")
             val methodPrint = it.methodList.map { me -> "${me.name} -> ${me.obfuscateName}" }
             println("method -> $methodPrint")
             val fieldsPrint =
                 it.fieldList.map { field -> "${field.name} -> ${field.obfuscateName}" }
             println("fields -> $fieldsPrint")
-            println(it.bodyInfo)
             println()
         }
-
-        //FIXME open this comment
-
-        //java file rename and re-import
-        //obfuscateJavaFile(javaFileTree)
-
-        //manifest 内容替换
-        //updateManifest()
-
-        //替换layout中的自定义view
-        //updateLayoutXml()
-
-        //outputMapping()
     }
 
-    private fun fillClazzInfoBelongFile(javaProjectBuilder: JavaProjectBuilder) {
+    private fun fillObfuscateFullyQualifiedName() {
+        clazzInfoList.forEach { clazzInfo ->
+            val clazzNodes = mutableListOf<ClazzInfo>()
+
+            //find all parent nodes and this already has been sorted form innermost to outermost
+            var checkingNode = clazzInfo
+            while (checkingNode.parentNode != null) {
+                val parentNode = checkingNode.parentNode!!
+                clazzNodes.add(parentNode)
+                checkingNode = parentNode
+            }
+            //reverse it
+            clazzNodes.reverse()
+            //add self
+            clazzNodes.add(clazzInfo)
+
+            val clazzQuoteName = clazzNodes.map { it.obfuscateClazzName }.joinToString(".")
+            println("clazzinfo -> ${clazzInfo.fullyQualifiedName} quotename -> $clazzQuoteName")
+            clazzInfo.fullyObfuscateQualifiedName = clazzInfo.packageName + "." + clazzQuoteName
+        }
+    }
+
+    private fun fillClazzInfoBelongFile(
+        javaProjectBuilder: JavaProjectBuilder,
+        javaSourceFileTree: FileTree
+    ) {
         javaProjectBuilder.classes.forEach { javaClass ->
             val clazzInfo = javaClass.parser()
             val packageAbsolutePath =
@@ -125,6 +151,20 @@ open class ClassGuardTask @Inject constructor(
             }
             if (clazzInfo.belongFile == null) {
                 println("error find class in all files -> ${clazzInfo.rawClazzName}")
+            }
+        }
+        //fill has belong file obfuscate name
+        javaSourceFileTree.forEach { javaFile ->
+            //this file contain class info
+            val fileClazzInfos = clazzInfoList.filter { it.isBelongThisFile(javaFile) }
+            //find same name class name as this file name
+            val clazzInfo = fileClazzInfos.find { it.rawClazzName == javaFile.getRealName() }
+            //get or gen class info obfuscate name
+            val obfuscateFileName =
+                clazzInfo?.obfuscateClazzName ?: RandomNameHelper.genClassName(Pair(4, 8))
+            //fill belong file obfuscate name
+            fileClazzInfos.forEach { clazzInfo ->
+                clazzInfo.belongFileObfuscateName = obfuscateFileName
             }
         }
     }
@@ -169,8 +209,6 @@ open class ClassGuardTask @Inject constructor(
         val nodes = mutableListOf<ClazzInfo>()
         nodes.addAll(rootNode.implNodes.toMutableList())
         rootNode.extendNode?.let { nodes.add(it) }
-
-        println("base -> ${rootNode.packageName}.${rootNode.rawClazzName} nodes -> ${nodes.map { it.rawClazzName }}")
         if (nodes.isEmpty()) {
             return
         }
@@ -231,57 +269,123 @@ open class ClassGuardTask @Inject constructor(
         MappingOutputHelper.write(project, mappingName, outputMap)
     }*/
 
-    /*
-        private fun obfuscateJavaFile(javaFileTree: FileTree) {
-            javaFileTree.forEach { file ->
-                val clazzInfo =
-                    clazzInfoList[file.absolutePath] ?: throw RuntimeException("file tree has changed")
-                var fileContent = file.readText()
-                clazzInfoList.forEach nameForEach@{ (filePath, clazzinfo) ->
-                    fileContent = fileContent
-                        .replaceWords(clazzinfo.rawClazzName, clazzinfo.obfuscateClazzName)
-                        .replaceWords(
-                            "import ${clazzinfo.packageName}.${clazzinfo.rawClazzName}",
-                            "import ${clazzinfo.packageName}.${clazzinfo.obfuscateClazzName}"
-                        )
-                }
-                val newFile = File(clazzInfo.obfuscatePath)
-                newFile.writeText(fileContent)
-                file.delete()
-            }
-        }
-    */
+    private fun obfuscateJavaFile(javaFileTree: FileTree) {
+        //sorted by long qualified name can avoid many accidents
+        val clazzInfoListSorted = clazzInfoList.sortedByDescending { it.fullyQualifiedName.length }
 
-    /*private fun updateLayoutXml() {
+        javaFileTree.forEach { file ->
+            doObfuscate(file, clazzInfoListSorted)
+        }
+    }
+
+    private fun doObfuscate(file: File, clazzInfoList: List<ClazzInfo>) {
+        var fileContent = file.readText()
+        println()
+        println("replacing file $file ...")
+
+        clazzInfoList.forEach { clazzinfo ->
+            //replace self class name
+            if (clazzinfo.isBelongThisFile(file)) {
+                fileContent = fileContent.replaceWords(
+                    clazzinfo.rawClazzName,
+                    clazzinfo.obfuscateClazzName
+                )
+            }
+
+            //current file imports
+            val fileImports =
+                clazzInfoList.find { it.isBelongThisFile(file) }?.imports ?: emptyList()
+
+            //list this file may import
+            val mayImportsModality = mutableListOf<String>()
+            val clazzLayerNames =
+                clazzinfo.fullyQualifiedName.replace("${clazzinfo.packageName}.", "").split(".")
+            for (layer in clazzLayerNames.size downTo 1) {
+                val assumeModality =
+                    clazzinfo.packageName + "." + clazzLayerNames.take(layer).joinToString(".")
+                mayImportsModality.add(assumeModality)
+            }
+
+            println("current checking clazzinfo -> ${clazzinfo.fullyQualifiedName}")
+            println("import maybe $mayImportsModality")
+
+            if (fileImports.hasOneOf(mayImportsModality) { s, s1 -> s == s1 }
+                || file.packagePath() == clazzinfo.packageName
+                || fileImports.contains("${clazzinfo.packageName}.*")
+            ) {
+                //should replace use a string that fully qualified name delete package name
+                val raw = clazzinfo.fullyQualifiedName.replace("${clazzinfo.packageName}.", "")
+                val obfuscate =
+                    clazzinfo.fullyObfuscateQualifiedName.replace("${clazzinfo.packageName}.", "")
+                println("replace $raw to $obfuscate")
+                val classLayerCount = raw.split(".").size
+                println("classLayerCount = $classLayerCount")
+                for (layer in classLayerCount downTo 1) {
+                    val oldValue = raw.split(".").takeLast(layer).joinToString(".")
+                    val newValue = obfuscate.split(".").takeLast(layer).joinToString(".")
+                    println("file -> $file do replace $oldValue to $newValue")
+                    fileContent = fileContent.replaceWords(oldValue, newValue)
+                }
+            }
+
+            //replace imports
+            fileContent = fileContent
+                .replaceWords(
+                    "import ${clazzinfo.packageName}.${clazzinfo.rawClazzName};",
+                    "import ${clazzinfo.packageName}.${clazzinfo.obfuscateClazzName};"
+                )
+                .replaceWords(
+                    "import ${clazzinfo.fullyQualifiedName};",
+                    "import ${clazzinfo.fullyObfuscateQualifiedName};"
+                )
+                .replaceWords(clazzinfo.fullyQualifiedName, clazzinfo.fullyObfuscateQualifiedName)
+        }
+
+        //find file obfuscate name
+        val fileObfuscateName = clazzInfoList.find {
+            it.isBelongThisFile(file)
+        }?.belongFileObfuscateName ?: return
+        //rename file
+        val obfuscatePath =
+            file.parentFile.absolutePath + File.separator + fileObfuscateName + javaFileExtensionName
+        val newFile = File(obfuscatePath)
+        newFile.writeText(fileContent)
+        //delete old file
+        file.delete()
+    }
+
+    private fun updateLayoutXml() {
         val layoutDirs = project.findLayoutDirs(variantName)
         val layoutDirFileTree = project.files(layoutDirs).asFileTree
 
         layoutDirFileTree.forEach {
             var content = it.readText()
-            clazzInfoList.forEach { (filePath, info) ->
+            clazzInfoList.forEach { info ->
                 val raw = info.packageName + "." + info.rawClazzName
+                //eg: com.littlew.example.pc.ATxtCusView
                 val obfuscate = info.packageName + "." + info.obfuscateClazzName
                 content = content.replaceWords(raw, obfuscate)
             }
             it.writeText(content)
         }
-    }*/
+    }
 
-    /*
-        private fun updateManifest() {
-            val manifest = project.manifestFile()
-            var manifestContent = manifest.readText()
-            //R path
-            val packagename = project.findPackageName()
+    private fun updateManifest() {
+        val manifest = project.manifestFile()
+        var manifestContent = manifest.readText()
+        //R path
+        val packagename = project.findPackageName()
 
-            clazzInfoList.forEach { (filePath, info) ->
-                val raw = info.packageName + "." + info.rawClazzName
-                val obfuscate = info.packageName + "." + info.obfuscateClazzName
-                manifestContent = manifestContent.replaceWords(raw, obfuscate)
-                    .replaceWords(raw.replace(packagename, ""), obfuscate.replace(packagename, ""))
-            }
-            manifest.writeText(manifestContent)
+        clazzInfoList.forEach { info ->
+            val raw = info.packageName + "." + info.rawClazzName
+            val obfuscate = info.packageName + "." + info.obfuscateClazzName
+            manifestContent = manifestContent
+                //eg: .MainActivity
+                .replaceWords(raw, obfuscate)
+                //eg: com.littlew.example.SecondActivity
+                .replaceWords(raw.replace(packagename, ""), obfuscate.replace(packagename, ""))
         }
-    */
+        manifest.writeText(manifestContent)
+    }
 
 }

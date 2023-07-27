@@ -15,3 +15,12 @@ fun File.getExtensionName(): String {
  * @return xxx
  */
 fun File.getRealName(): String = name.split(".").first()
+
+/**
+ * 获取file中第一行的 package
+ */
+fun File.packagePath(): String {
+    val fileLines = readLines()
+    return fileLines.find { it.startsWith("package ") }?.removePrefix("package ")?.removeSuffix(";")
+        ?: ""
+}

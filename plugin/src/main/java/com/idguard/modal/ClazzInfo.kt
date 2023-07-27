@@ -13,17 +13,9 @@ data class ClazzInfo(
      */
     val modifier: List<String> = emptyList(),
     /**
-     * 包名称
+     * 所在包名称
      */
     val packageName: String = "",
-    /**
-     * 原始路径
-     */
-    val rawPath: String = "",
-    /**
-     * 混淆后的路径
-     */
-    var obfuscatePath: String = "",
     /**
      * 原始类名称
      */
@@ -33,6 +25,11 @@ data class ClazzInfo(
      * 全限定的名称
      */
     val fullyQualifiedName: String = "",
+
+    /**
+     * 混淆过后的全限定的名称
+     */
+    var fullyObfuscateQualifiedName :String = "",
     /**
      * 混淆后的类名称
      */
@@ -66,15 +63,22 @@ data class ClazzInfo(
      * 实现了哪个接口的节点
      */
     val implNodes: MutableList<ClazzInfo> = mutableListOf(),
-
+    /**
+     * 是否 interface
+     */
     var isInterface: Boolean = false,
-
+    /**
+     * 是否枚举类
+     */
     var isEnum: Boolean = false,
-
     /**
      * 所属的文件
      */
     var belongFile: File? = null,
+    /**
+     * 混淆过后的file名称
+     */
+    var belongFileObfuscateName: String = "",
     /**
      * 引入的包 不包括正文代码中以 com.a.b.c 形式引入的
      */
@@ -86,21 +90,15 @@ data class ClazzInfo(
      */
     val bodyInfo: String,
 ) {
-    fun getClassContent(): String {
-        val sb = StringBuilder()
-        sb.appendLine("package $packageName;")
-        val imports = imports.map { "import $it;" }
-        imports.forEach {
-            sb.appendLine(it)
-        }
-        sb.append(bodyInfo)
-        return sb.toString()
-    }
-
     /**
      * 是对应的 javaClass
      */
     fun isCorrespondingJavaClass(javaClass: JavaClass): Boolean {
         return fullyQualifiedName == javaClass.fullyQualifiedName
+    }
+
+    fun isBelongThisFile(file: File): Boolean {
+        val belongFile = belongFile ?: return false
+        return belongFile.absolutePath == file.absolutePath
     }
 }

@@ -67,23 +67,3 @@ fun String.splitWords(): List<String> {
     val regex = Regex("(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
     return split(regex).map { it.lowercase() }
 }
-
-/**
- * 获取对应文件的package路径
- * 已废弃
- */
-@Deprecated("use file read line to find lines start with package")
-fun String.getPackagePath(): String {
-    val file = File(this)
-    if (file.isDirectory) {
-        throw IllegalArgumentException("file path is a directory")
-    }
-    val filePath = file.absolutePath
-    val splitPathArray = filePath.split(File.separator)
-    val indexOfJava = splitPathArray.indexOfFirst { it == "java" }
-    if (indexOfJava < 0) {
-        throw IllegalArgumentException("file path is not correct path is $filePath")
-    }
-    val packagePathArray = splitPathArray.subList(indexOfJava + 1, splitPathArray.size - 1)
-    return packagePathArray.joinToString(".")
-}
