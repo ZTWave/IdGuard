@@ -16,7 +16,7 @@ repositories {
   maven { url 'https://jitpack.io' }  
 }  
 dependencies {  
-  classpath 'com.github.ZTWave:IdGuard:0.0.10'  
+  classpath 'com.github.ZTWave:IdGuard:0.1.0'  
 }
 ```
 
