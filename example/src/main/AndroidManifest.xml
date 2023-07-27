@@ -21,7 +21,7 @@
       </intent-filter>
     </activity>
 
-    <activity android:name=".SecondActivity" />
+    <activity android:name="com.littlew.example.SecondActivity" />
   </application>
 
 </manifest>

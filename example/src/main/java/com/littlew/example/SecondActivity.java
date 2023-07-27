@@ -1,7 +1,5 @@
 package com.littlew.example;
 
-import static com.littlew.example.pb.ObTest.InnerClass.OV_VALUE_INNER;
-
 import android.os.Bundle;
 import android.os.PersistableBundle;
 
@@ -24,7 +22,7 @@ public class SecondActivity extends AppCompatActivity {
         //比较与MainActivity中的使用形式
         String f = InnerClass.OV_VALUE_INNER;
 
-        String g = OV_VALUE_INNER;
+        String g =  com.littlew.example.pb.ObTest.InnerClass.OV_VALUE_INNER;
     }
 
     //public
