@@ -78,11 +78,14 @@ open class ClassGuardTask @Inject constructor(
             println("packageName -> ${it.packageName}")
             println("fullyQualifiedName -> ${it.fullyQualifiedName} obfuscateQualifiedName -> ${it.fullyObfuscateQualifiedName}")
             println("file -> ${it.belongFile} belongFileObfuscateName -> ${it.belongFileObfuscateName}")
-            val methodPrint = it.methodList.map { me -> "${me.name} -> ${me.obfuscateName}" }
+            val methodPrint =
+                it.methodList.map { me -> "${me.name} -> ${me.obfuscateName} \n ${me.methodBody}" }
             println("method -> $methodPrint")
             val fieldsPrint =
                 it.fieldList.map { field -> "${field.name} -> ${field.obfuscateName}" }
             println("fields -> $fieldsPrint")
+            println("class body")
+            println(it.bodyInfo)
             println()
         }
     }
@@ -309,11 +312,14 @@ open class ClassGuardTask @Inject constructor(
             println("current checking clazzinfo -> ${clazzinfo.fullyQualifiedName}")
             println("import maybe $mayImportsModality")
 
-            if (fileImports.hasOneOf(mayImportsModality) { s, s1 -> s == s1 }
+            val needTryReplaceQuotePairs = mutableListOf<Pair<String, String>>()
+            if (
+                fileImports.hasOneOf(mayImportsModality) { s, s1 -> s == s1 }
                 || file.packagePath() == clazzinfo.packageName
+                //import * maybe not stable in some cases
                 || fileImports.contains("${clazzinfo.packageName}.*")
             ) {
-                //should replace use a string that fully qualified name delete package name
+                //should replace with a string that fully qualified name delete package name
                 val raw = clazzinfo.fullyQualifiedName.replace("${clazzinfo.packageName}.", "")
                 val obfuscate =
                     clazzinfo.fullyObfuscateQualifiedName.replace("${clazzinfo.packageName}.", "")
@@ -324,8 +330,15 @@ open class ClassGuardTask @Inject constructor(
                     val oldValue = raw.split(".").takeLast(layer).joinToString(".")
                     val newValue = obfuscate.split(".").takeLast(layer).joinToString(".")
                     println("file -> $file do replace $oldValue to $newValue")
-                    fileContent = fileContent.replaceWords(oldValue, newValue)
+                    needTryReplaceQuotePairs.add(Pair(oldValue, newValue))
                 }
+            }
+
+            needTryReplaceQuotePairs.sortByDescending { it.first.length }
+
+            //do replace
+            for (replacement in needTryReplaceQuotePairs) {
+                fileContent = fileContent.replaceWords(replacement.first, replacement.second)
             }
 
             //replace imports

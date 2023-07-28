@@ -21,7 +21,12 @@ data class MethodInfo(
     /**
      * 需要混淆的标识
      */
-    var needObfuscate: Boolean = false
+    var needObfuscate: Boolean = false,
+
+    /**
+     * 方法体
+     */
+    val methodBody: String = ""
 ) {
     /**
      * 是一个签名的函数

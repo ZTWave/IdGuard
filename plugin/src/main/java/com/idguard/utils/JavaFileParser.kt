@@ -19,6 +19,8 @@ fun JavaClass.parser(): ClazzInfo {
             it.type.name.contains("Override")
         } != null
         val obfuscateName = if (isOverride) {
+            //temporary can't identify this method from our project or some library, jars
+            //it will be fill after all java file is transform to clazzInfo
             ""
         } else {
             RandomNameHelper.genNames(1, Pair(4, 12), false, true).first()
@@ -29,7 +31,8 @@ fun JavaClass.parser(): ClazzInfo {
             returnType = javaMethod.returnType.genericValue,
             params = javaMethod.parameters.map { "${it.type} ${it.name}" },
             isOverride = isOverride,
-            obfuscateName = obfuscateName
+            obfuscateName = obfuscateName,
+            methodBody = javaMethod.codeBlock
         )
     }
 
