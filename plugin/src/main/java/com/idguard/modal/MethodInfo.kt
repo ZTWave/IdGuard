@@ -1,5 +1,8 @@
 package com.idguard.modal
 
+import com.idguard.utils.elementEquals
+import com.thoughtworks.qdox.model.JavaMethod
+
 data class MethodInfo(
     val modifier: List<String> = emptyList(),
 
@@ -28,23 +31,33 @@ data class MethodInfo(
      */
     val methodBody: String = ""
 ) {
+
+    private fun isSameParams(params1: List<String>, params2: List<String>): Boolean {
+        if (params1.size != params2.size) {
+            return false
+        }
+        val aParams = params1.map { it.split(" ")[0] }
+        val bParams = params2.map { it.split(" ")[0] }
+        return aParams.containsAll(bParams)
+    }
+
     /**
      * 是一个签名的函数
      */
-    fun isSameFun(info: MethodInfo): Boolean {
+    fun isSameParams(info: MethodInfo): Boolean {
         if (this.name != info.name) {
-            return false
-        }
-        if (this.params.size != info.params.size) {
             return false
         }
         if (this.returnType != info.returnType) {
             return false
         }
+        return isSameParams(params, info.params)
+    }
 
-        val aParams = this.params.map { it.split(" ")[0] }
-        val bParams = info.params.map { it.split(" ")[0] }
-
-        return aParams.containsAll(bParams)
+    fun isCorrespondingJavaMethod(javaMethod: JavaMethod): Boolean {
+        val params2 = javaMethod.parameters.map { "${it.type} ${it.name}" }
+        return name == javaMethod.name
+            && modifier.elementEquals(javaMethod.modifiers)
+            && isSameParams(params, params2)
     }
 }

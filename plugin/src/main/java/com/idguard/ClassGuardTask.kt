@@ -58,13 +58,13 @@ open class ClassGuardTask @Inject constructor(
         fillObfuscateFullyQualifiedName()
         println("fill obfuscated fully qualified name finished.")
 
-        println("start obfuscate...")
+        /*println("start obfuscate...")
         obfuscateJavaFile(javaFilesTree)
         //manifest 内容替换
         updateManifest()
 
         //替换layout中的自定义view
-        updateLayoutXml()
+        updateLayoutXml()*/
 
         printInfos()
 
@@ -76,6 +76,7 @@ open class ClassGuardTask @Inject constructor(
             println("${it.modifier} ${it.rawClazzName} extend ${it.extendNode?.fullyQualifiedName} implements ${it.implNodes.map { node -> node.fullyQualifiedName }}")
             println("parent -> ${it.parentNode?.rawClazzName ?: "null"} ")
             println("packageName -> ${it.packageName}")
+            println("import -> ${it.imports}")
             println("fullyQualifiedName -> ${it.fullyQualifiedName} obfuscateQualifiedName -> ${it.fullyObfuscateQualifiedName}")
             println("file -> ${it.belongFile} belongFileObfuscateName -> ${it.belongFileObfuscateName}")
             val methodPrint =
@@ -197,7 +198,7 @@ open class ClassGuardTask @Inject constructor(
             println()
             println("base -> ${clazzInfo.packageName}.${clazzInfo.rawClazzName} parent nodes method except override -> ${parentMethods.map { it.name }}")
             clazzInfo.methodList.forEach { method ->
-                val find = parentMethods.find { it.isSameFun(method) }
+                val find = parentMethods.find { it.isSameParams(method) }
                 find?.let {
                     method.obfuscateName = it.obfuscateName
                 }

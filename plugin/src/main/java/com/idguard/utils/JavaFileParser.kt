@@ -41,7 +41,7 @@ fun JavaClass.parser(): ClazzInfo {
         FieldInfo(
             modifier = javaField.modifiers,
             name = javaField.name,
-            type = javaField.type.name,
+            type = javaField.type.fullyQualifiedName,
             obfuscateName = obfuscateName
         )
     }

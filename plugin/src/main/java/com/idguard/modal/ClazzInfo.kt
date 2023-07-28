@@ -1,6 +1,7 @@
 package com.idguard.modal
 
 import com.thoughtworks.qdox.model.JavaClass
+import com.thoughtworks.qdox.model.JavaType
 import java.io.File
 
 /**
@@ -29,7 +30,7 @@ data class ClazzInfo(
     /**
      * 混淆过后的全限定的名称
      */
-    var fullyObfuscateQualifiedName :String = "",
+    var fullyObfuscateQualifiedName: String = "",
     /**
      * 混淆后的类名称
      */
@@ -95,6 +96,10 @@ data class ClazzInfo(
      */
     fun isCorrespondingJavaClass(javaClass: JavaClass): Boolean {
         return fullyQualifiedName == javaClass.fullyQualifiedName
+    }
+
+    fun isCorrespondingJavaType(javaType: JavaType): Boolean {
+        return fullyQualifiedName == javaType.fullyQualifiedName
     }
 
     fun isBelongThisFile(file: File): Boolean {
