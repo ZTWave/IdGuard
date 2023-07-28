@@ -1,6 +1,7 @@
 package com.littlew.example;
 
 import static com.littlew.example.pb.ObTest.OV_IM_VALUE;
+import static com.littlew.example.pj.SsInnerMeTest.sMethod;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -83,6 +84,8 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
 
         com.littlew.example.pf.ia.C c = new com.littlew.example.pf.ia.C();
 
+
+        sMethod("123");
 
         int a = 3;
     }
