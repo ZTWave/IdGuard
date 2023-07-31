@@ -2,7 +2,14 @@ package com.idguard
 
 import com.idguard.modal.ClazzInfo
 import com.idguard.modal.MethodInfo
-import com.idguard.utils.*
+import com.idguard.utils.RandomNameHelper
+import com.idguard.utils.findLayoutDirs
+import com.idguard.utils.findPackageName
+import com.idguard.utils.getRealName
+import com.idguard.utils.javaDirs
+import com.idguard.utils.manifestFile
+import com.idguard.utils.parser
+import com.idguard.utils.replaceWords
 import com.idguard.writer.ObfuscateModelWriter
 import com.thoughtworks.qdox.JavaProjectBuilder
 import com.thoughtworks.qdox.library.ClassLibraryBuilder
@@ -29,7 +36,11 @@ open class ClassGuardTask @Inject constructor(
     private val funNameMapping = mutableMapOf<String, String>()
 
     private val mappingName = "class_guard_mapping.text"
-    private val modelWriter = ObfuscateModelWriter()
+    private fun modelWriter(clazzInfos: List<ClazzInfo>): ObfuscateModelWriter {
+        return ObfuscateModelWriter().apply {
+            this.clazzInfos = clazzInfos
+        }
+    }
 
     /**
      * only for java source file
@@ -69,7 +80,7 @@ open class ClassGuardTask @Inject constructor(
         println("fill obfuscated fully qualified name finished.")
 
         println("start obfuscate...")
-        obfuscateJavaFile(javaFilesTree)
+        obfuscateJavaFile(javaProjectBuilder)
 
         //manifest 内容替换
         updateManifest()
@@ -284,139 +295,22 @@ open class ClassGuardTask @Inject constructor(
         MappingOutputHelper.write(project, mappingName, outputMap)
     }*/
 
-    private fun obfuscateJavaFile(javaFileTree: FileTree) {
-        //sorted by long qualified name can avoid many accidents
-        val clazzInfoListSorted = clazzInfoList.sortedByDescending { it.fullyQualifiedName.length }
-
-        javaFileTree.forEach { file ->
-            doObfuscate(file, clazzInfoListSorted)
+    private fun obfuscateJavaFile(javaProjectBuilder: JavaProjectBuilder) {
+        val sources = javaProjectBuilder.sources
+        println("sources size -> ${sources.size}")
+        sources.forEach { javaSource ->
+            val writer = modelWriter(clazzInfoList)
+            val oneClazzInfo = javaSource.classes.firstOrNull()
+                ?: throw RuntimeException("this source has no java source")
+            val clazzInfo = clazzInfoList.find { it.isCorrespondingJavaClass(oneClazzInfo) }
+            val belongFile =
+                clazzInfo?.belongFile
+                    ?: throw RuntimeException("this class info is null or belong file is null")
+            val newFile =
+                belongFile.parentFile.absolutePath + File.separator + clazzInfo.belongFileObfuscateName + javaFileExtensionName
+            writer.writeSource(javaSource)
+            File(newFile).writeText(writer.toString())
         }
-    }
-
-    private fun doObfuscate(file: File, clazzInfoList: List<ClazzInfo>) {
-        var fileContent = file.readText()
-        println()
-        println("replacing file $file ...")
-
-        clazzInfoList.forEach { currentClazzinfo ->
-            //replace self class name
-            if (currentClazzinfo.isBelongThisFile(file)) {
-                fileContent = fileContent.replaceWords(
-                    currentClazzinfo.rawClazzName,
-                    currentClazzinfo.obfuscateClazzName
-                )
-            }
-
-            //current file imports
-            val fileImports =
-                clazzInfoList.find { it.isBelongThisFile(file) }?.imports ?: emptyList()
-
-            //list this file may import
-            val mayImportsModality = mutableListOf<String>()
-            val clazzLayerNames =
-                currentClazzinfo.fullyQualifiedName.replace("${currentClazzinfo.packageName}.", "")
-                    .split(".")
-            for (layer in clazzLayerNames.size downTo 1) {
-                val assumeModality =
-                    currentClazzinfo.packageName + "." + clazzLayerNames.take(layer)
-                        .joinToString(".")
-                mayImportsModality.add(assumeModality)
-            }
-
-            println("current checking clazzinfo -> ${currentClazzinfo.fullyQualifiedName}")
-            println("import maybe $mayImportsModality")
-
-            val needTryReplaceQuotePairs = mutableListOf<Pair<String, String>>()
-            //replace class declaration
-            if (
-                fileImports.hasOneOf(mayImportsModality) { s, s1 -> s == s1 }
-                || file.packagePath() == currentClazzinfo.packageName
-                //import * maybe not stable in some cases
-                || fileImports.contains("${currentClazzinfo.packageName}.*")
-            ) {
-                //should replace with a string that fully qualified name delete package name
-                val raw = currentClazzinfo.fullyQualifiedName.replace(
-                    "${currentClazzinfo.packageName}.",
-                    ""
-                )
-                val obfuscate =
-                    currentClazzinfo.fullyObfuscateQualifiedName.replace(
-                        "${currentClazzinfo.packageName}.",
-                        ""
-                    )
-                println("replace $raw to $obfuscate")
-                val classLayerCount = raw.split(".").size
-                println("classLayerCount = $classLayerCount")
-                for (layer in classLayerCount downTo 1) {
-                    val oldValue = raw.split(".").takeLast(layer).joinToString(".")
-                    val newValue = obfuscate.split(".").takeLast(layer).joinToString(".")
-                    println("file -> $file do replace $oldValue to $newValue")
-                    needTryReplaceQuotePairs.add(Pair(oldValue, newValue))
-                }
-
-                //replace self method and implement extend override method name
-                //current file clazz info
-                val methods = currentClazzinfo.methodList
-                for (method in methods) {
-                    if (method.obfuscateName.isNotBlank()) {
-                        needTryReplaceQuotePairs.add(Pair(method.rawName, method.obfuscateName))
-                        needTryReplaceQuotePairs.add(
-                            Pair(
-                                "super.${method.rawName}",
-                                "super.${method.obfuscateName}"
-                            )
-                        )
-                        if (method.isStatic()) {
-                            needTryReplaceQuotePairs.add(
-                                Pair(
-                                    "import static ${currentClazzinfo.fullyQualifiedName}.${method.rawName};",
-                                    "import static ${currentClazzinfo.fullyQualifiedName}.${method.obfuscateName};",
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-
-            needTryReplaceQuotePairs.sortByDescending { it.first.length }
-
-            println("replace info ........start")
-            println(needTryReplaceQuotePairs)
-            println("replace info ........ends")
-
-            //do replace
-            for (replacement in needTryReplaceQuotePairs) {
-                fileContent = fileContent.replaceWords(replacement.first, replacement.second)
-            }
-
-            //replace imports
-            fileContent = fileContent
-                .replaceWords(
-                    "import ${currentClazzinfo.packageName}.${currentClazzinfo.rawClazzName};",
-                    "import ${currentClazzinfo.packageName}.${currentClazzinfo.obfuscateClazzName};"
-                )
-                .replaceWords(
-                    "import ${currentClazzinfo.fullyQualifiedName};",
-                    "import ${currentClazzinfo.fullyObfuscateQualifiedName};"
-                )
-                .replaceWords(
-                    currentClazzinfo.fullyQualifiedName,
-                    currentClazzinfo.fullyObfuscateQualifiedName
-                )
-        }
-
-        //find file obfuscate name
-        val fileObfuscateName = clazzInfoList.find {
-            it.isBelongThisFile(file)
-        }?.belongFileObfuscateName ?: return
-        //rename file
-        val obfuscatePath =
-            file.parentFile.absolutePath + File.separator + fileObfuscateName + javaFileExtensionName
-        val newFile = File(obfuscatePath)
-        newFile.writeText(fileContent)
-        //delete old file
-        file.delete()
     }
 
     private fun updateLayoutXml() {

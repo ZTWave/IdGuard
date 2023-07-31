@@ -22,6 +22,7 @@ class ObfuscateModelWriter() : ModelWriter {
 
         // import statement
         val obfuscateImports = ObfuscateInfoMaker.imports(source.imports, clazzInfos)
+        debug("obfuscateImports -> $obfuscateImports")
         for (imprt in obfuscateImports) {
             buffer.write("import ")
             buffer.write(imprt)
@@ -44,8 +45,8 @@ class ObfuscateModelWriter() : ModelWriter {
         return this
     }
 
-    /** {@inheritDoc}  */
-    override fun writePackage(pckg: JavaPackage?): ModelWriter? {
+    override fun writePackage(pckg: JavaPackage?): ModelWriter {
+        debug("writePackage -> $pckg")
         if (pckg != null) {
             commentHeader(pckg)
             buffer.write("package ")
@@ -60,7 +61,7 @@ class ObfuscateModelWriter() : ModelWriter {
     /**
      * temporary not consider class is annotation
      */
-    override fun writeClass(cls: JavaClass): ModelWriter? {
+    override fun writeClass(cls: JavaClass): ModelWriter {
         commentHeader(cls)
         writeAccessibilityModifier(cls.modifiers)
         writeNonAccessibilityModifiers(cls.modifiers)
@@ -82,7 +83,11 @@ class ObfuscateModelWriter() : ModelWriter {
             if ("java.lang.Object" != className && "java.lang.Enum" != className) {
                 buffer.write(" extends ")
                 //buffer.write(cls.superClass.genericCanonicalName)
-                buffer.write(ObfuscateInfoMaker.className(cls, clazzInfos))
+                try {
+                    buffer.write(ObfuscateInfoMaker.className(cls.superClass, clazzInfos))
+                } catch (e: RuntimeException) {
+                    buffer.write(cls.superClass.genericCanonicalName)
+                }
             }
         }
 
@@ -124,9 +129,13 @@ class ObfuscateModelWriter() : ModelWriter {
             writeConstructor(javaConstructor)
         }
 
-        // methods
+        // methods replace
         val obfuscateMethod =
-            ObfuscateInfoMaker.method(cls.methods, corrObfuscateClassInfo.methodList)
+            ObfuscateInfoMaker.method(
+                cls.methods,
+                corrObfuscateClassInfo,
+                clazzInfos
+            )
         for (javaMethod in obfuscateMethod) {
             buffer.newline()
             writeMethod(javaMethod)
@@ -162,14 +171,14 @@ class ObfuscateModelWriter() : ModelWriter {
 
     override fun writeField(field: JavaField): ModelWriter {
         commentHeader(field)
-        writeAllModifiers(field.modifiers)
         if (!field.isEnumConstant) {
+            writeAllModifiers(field.modifiers)
             buffer.write(field.type.genericCanonicalName)
             buffer.write(' ')
         }
         buffer.write(field.name)
         if (field.isEnumConstant) {
-            if (field.enumConstantArguments != null && !field.enumConstantArguments.isEmpty()) {
+            if (field.enumConstantArguments != null && field.enumConstantArguments.isNotEmpty()) {
                 buffer.write("( ")
                 val iter: Iterator<Expression> = field.enumConstantArguments.listIterator()
                 while (iter.hasNext()) {
@@ -183,13 +192,14 @@ class ObfuscateModelWriter() : ModelWriter {
             if (field.enumConstantClass != null) {
                 writeClassBody(field.enumConstantClass)
             }
+            buffer.write(',')
         } else {
-            if (field.initializationExpression != null && field.initializationExpression.length > 0) {
+            if (field.initializationExpression != null && field.initializationExpression.isNotEmpty()) {
                 run { buffer.write(" = ") }
                 buffer.write(field.initializationExpression)
             }
+            buffer.write(';')
         }
-        buffer.write(';')
         buffer.newline()
         return this
     }
@@ -227,7 +237,7 @@ class ObfuscateModelWriter() : ModelWriter {
         return this
     }
 
-    override fun writeMethod(method: JavaMethod): ModelWriter? {
+    override fun writeMethod(method: JavaMethod): ModelWriter {
         commentHeader(method)
         writeAccessibilityModifier(method.modifiers)
         writeNonAccessibilityModifiers(method.modifiers)
@@ -253,7 +263,7 @@ class ObfuscateModelWriter() : ModelWriter {
                 }
             }
         }
-        if (method.sourceCode != null && method.sourceCode.length > 0) {
+        if (method.sourceCode != null && method.sourceCode.isNotEmpty()) {
             buffer.write(" {")
             buffer.newline()
             buffer.write(method.sourceCode)
@@ -471,4 +481,8 @@ class ObfuscateModelWriter() : ModelWriter {
     }
 
     override fun toString(): String = buffer.toString()
+
+    private fun debug(msg: String) {
+        println(msg)
+    }
 }

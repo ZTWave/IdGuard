@@ -2,7 +2,9 @@ package com.idguard.writer
 
 import com.idguard.modal.ClazzInfo
 import com.idguard.modal.FieldInfo
-import com.idguard.modal.MethodInfo
+import com.idguard.utils.findImportsClassInfo
+import com.idguard.utils.findUpperNodes
+import com.idguard.utils.replaceWords
 import com.thoughtworks.qdox.model.JavaClass
 import com.thoughtworks.qdox.model.JavaConstructor
 import com.thoughtworks.qdox.model.JavaField
@@ -14,6 +16,7 @@ import com.thoughtworks.qdox.model.impl.DefaultJavaMethod
 
 object ObfuscateInfoMaker {
     fun imports(rawImports: List<String>, obInfos: List<ClazzInfo>): List<String> {
+        println("ob import $rawImports")
         //build all class maybe import quote names
         val mayImportsModality = mutableMapOf<String, String>()
         obInfos.forEach { clazzinfo ->
@@ -64,8 +67,14 @@ object ObfuscateInfoMaker {
             val corrImport = mayImportsModality.getOrDefault(rawImport, "")
             if (corrImport.isNotBlank()) {
                 obfuscate.add(corrImport)
+            } else {
+                obfuscate.add(rawImport)
             }
         }
+        obfuscate.sortedBy {
+            it.length
+        }
+        println("af-ob import $obfuscate")
         return obfuscate
     }
 
@@ -100,10 +109,17 @@ object ObfuscateInfoMaker {
     ): List<JavaConstructor> {
         val copy = constructors.toList()
         val result = mutableListOf<JavaConstructor>()
-        val name = corrClassInfo.rawClazzName
+        val name = corrClassInfo.obfuscateClazzName
+        val fields = corrClassInfo.fieldList
         copy.forEach {
             val javaConstructor = it as? DefaultJavaConstructor ?: return@forEach
             javaConstructor.name = name
+            fields.forEach { field ->
+                javaConstructor.sourceCode = javaConstructor.sourceCode.replaceWords(
+                    "this.${field.name}",
+                    "this.${field.obfuscateName}"
+                ).replaceWords(field.name, field.obfuscateName)
+            }
             result.add(javaConstructor)
         }
         return result
@@ -111,16 +127,40 @@ object ObfuscateInfoMaker {
 
     fun method(
         methods: List<JavaMethod>,
-        obfuscateMethodsInfo: List<MethodInfo>
+        currentClazzInfo: ClazzInfo,
+        clazzInfos: List<ClazzInfo>
     ): List<JavaMethod> {
+
+        //find all need replace field
+        val needReplaceField = mutableListOf<FieldInfo>()
+        val upperNodes = mutableListOf<ClazzInfo>()
+        findUpperNodes(currentClazzInfo, upperNodes)
+        val upperUsefulFields = upperNodes.flatMap { it.fieldList }.filter {
+            it.modifier.isEmpty() || it.modifier.contains("public") || it.modifier.contains("protected")
+        }
+        needReplaceField.addAll(upperUsefulFields)
+        needReplaceField.addAll(currentClazzInfo.fieldList)
+
+        val r = findImportsClassInfo(currentClazzInfo, clazzInfos)
+        println("r ${currentClazzInfo.rawClazzName} -> ${r.map { it.rawClazzName }}")
+
         val copy = methods.toList()
         val result = mutableListOf<JavaMethod>()
         copy.forEach {
             val javaMethod = it as? DefaultJavaMethod ?: return@forEach
             val methodInfo =
-                obfuscateMethodsInfo.find { method -> method.isCorrespondingJavaMethod(javaMethod) }
+                currentClazzInfo.methodList.find { method ->
+                    method.isCorrespondingJavaMethod(
+                        javaMethod
+                    )
+                }
             methodInfo?.rawName?.let { name ->
                 javaMethod.name = name
+            }
+            needReplaceField.forEach { field ->
+                val raw = field.name
+                val obfuscate = field.obfuscateName
+                javaMethod.sourceCode = javaMethod.sourceCode.replaceWords(raw, obfuscate)
             }
             result.add(javaMethod)
         }
