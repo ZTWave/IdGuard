@@ -84,6 +84,7 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
 
         com.littlew.example.pf.ia.C c = new com.littlew.example.pf.ia.C();
 
+        parentMethod();
 
         sMethod("123");
 

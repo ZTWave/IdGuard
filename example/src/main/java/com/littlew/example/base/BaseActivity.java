@@ -17,4 +17,8 @@ public class BaseActivity extends AppCompatActivity {
     private void c() {
         int a = 2;
     }
+
+    protected void parentMethod(){
+        //do something
+    }
 }
