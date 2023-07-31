@@ -65,6 +65,9 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
         recyclerView.setAdapter(new RAdapter(Arrays.asList(stringArray)));
 
         new DataA().test();
+//        new DataA().testb();
+//        new DataA().testc();
+//        new DataA().testd();
 
         String i = ObTest.OV_VALUE;
 
