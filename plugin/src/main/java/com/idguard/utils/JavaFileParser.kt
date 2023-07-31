@@ -27,7 +27,7 @@ fun JavaClass.parser(): ClazzInfo {
         }
         MethodInfo(
             modifier = javaMethod.modifiers,
-            name = javaMethod.name,
+            rawName = javaMethod.name,
             returnType = javaMethod.returnType.genericValue,
             params = javaMethod.parameters.map { "${it.type} ${it.name}" },
             isOverride = isOverride,

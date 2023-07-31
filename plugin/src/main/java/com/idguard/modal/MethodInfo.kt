@@ -6,7 +6,7 @@ import com.thoughtworks.qdox.model.JavaMethod
 data class MethodInfo(
     val modifier: List<String> = emptyList(),
 
-    val name: String = "",
+    val rawName: String = "",
 
     val returnType: String = "",
 
@@ -38,14 +38,22 @@ data class MethodInfo(
         }
         val aParams = params1.map { it.split(" ")[0] }
         val bParams = params2.map { it.split(" ")[0] }
-        return aParams.containsAll(bParams)
+        val pSize = aParams.size
+        for (i in 0 until pSize) {
+            val p1 = aParams[i]
+            val p2 = bParams[i]
+            if (p1 != p2) {
+                return false
+            }
+        }
+        return true
     }
 
     /**
      * 是一个签名的函数
      */
-    fun isSameParams(info: MethodInfo): Boolean {
-        if (this.name != info.name) {
+    fun isSameFun(info: MethodInfo): Boolean {
+        if (this.rawName != info.rawName) {
             return false
         }
         if (this.returnType != info.returnType) {
@@ -56,8 +64,12 @@ data class MethodInfo(
 
     fun isCorrespondingJavaMethod(javaMethod: JavaMethod): Boolean {
         val params2 = javaMethod.parameters.map { "${it.type} ${it.name}" }
-        return name == javaMethod.name
+        return rawName == javaMethod.name
             && modifier.elementEquals(javaMethod.modifiers)
             && isSameParams(params, params2)
+    }
+
+    fun isStatic(): Boolean {
+        return modifier.contains("static")
     }
 }

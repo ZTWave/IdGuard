@@ -11,8 +11,10 @@ import com.thoughtworks.qdox.writer.impl.IndentBuffer
 /**
  * clazzinfos is project's
  */
-class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
+class ObfuscateModelWriter() : ModelWriter {
     val buffer = IndentBuffer()
+
+    var clazzInfos: List<ClazzInfo> = emptyList()
 
     override fun writeSource(source: JavaSource): ModelWriter? {
         // package statement
@@ -115,21 +117,23 @@ class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
         }
 
         // constructors
-        val obfuscateConstructor = ObfuscateInfoMaker.constructors(cls.constructors, corrObfuscateClassInfo)
+        val obfuscateConstructor =
+            ObfuscateInfoMaker.constructors(cls.constructors, corrObfuscateClassInfo)
         for (javaConstructor in obfuscateConstructor) {
             buffer.newline()
             writeConstructor(javaConstructor)
         }
 
         // methods
-        val obfuscateMethod = ObfuscateInfoMaker.method(cls.methods, corrObfuscateClassInfo.methodList)
+        val obfuscateMethod =
+            ObfuscateInfoMaker.method(cls.methods, corrObfuscateClassInfo.methodList)
         for (javaMethod in obfuscateMethod) {
             buffer.newline()
             writeMethod(javaMethod)
         }
 
         // inner-classes
-        // TODO: 没有关联 嵌套的子节点
+        // doesn't matter
         for (innerCls in cls.nestedClasses) {
             buffer.newline()
             writeClass(innerCls)
@@ -141,7 +145,6 @@ class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
         return this
     }
 
-    /** {@inheritDoc}  */
     override fun writeInitializer(init: JavaInitializer): ModelWriter? {
         if (init.isStatic) {
             buffer.write("static ")
@@ -191,7 +194,6 @@ class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
         return this
     }
 
-    /** {@inheritDoc}  */
     override fun writeConstructor(constructor: JavaConstructor): ModelWriter? {
         commentHeader(constructor)
         writeAllModifiers(constructor.modifiers)
@@ -225,7 +227,6 @@ class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
         return this
     }
 
-    /** {@inheritDoc}  */
     override fun writeMethod(method: JavaMethod): ModelWriter? {
         commentHeader(method)
         writeAccessibilityModifier(method.modifiers)
@@ -292,7 +293,6 @@ class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
         }
     }
 
-    /** {@inheritDoc}  */
     override fun writeAnnotation(annotation: JavaAnnotation): ModelWriter? {
         buffer.write('@')
         buffer.write(annotation.type.genericCanonicalName)
@@ -318,7 +318,6 @@ class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
         return this
     }
 
-    /** {@inheritDoc}  */
     override fun writeParameter(parameter: JavaParameter): ModelWriter {
         commentHeader(parameter)
         buffer.write(parameter.genericCanonicalName)
@@ -364,7 +363,6 @@ class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
         }
     }
 
-    /** {@inheritDoc}  */
     override fun writeModuleDescriptor(descriptor: JavaModuleDescriptor): ModelWriter {
         if (descriptor.isOpen) {
             buffer.write("open ")
@@ -399,7 +397,6 @@ class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
         return this
     }
 
-    /** {@inheritDoc}  */
     override fun writeModuleExports(exports: JavaExports): ModelWriter {
         buffer.write("exports ")
         buffer.write(exports.source.name)
@@ -419,7 +416,6 @@ class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
         return this
     }
 
-    /** {@inheritDoc}  */
     override fun writeModuleOpens(opens: JavaOpens): ModelWriter {
         buffer.write("opens ")
         buffer.write(opens.source.name)
@@ -439,7 +435,6 @@ class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
         return this
     }
 
-    /** {@inheritDoc}  */
     override fun writeModuleProvides(provides: JavaProvides): ModelWriter? {
         buffer.write("provides ")
         buffer.write(provides.service.name)
@@ -457,7 +452,6 @@ class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
         return null
     }
 
-    /** {@inheritDoc}  */
     override fun writeModuleRequires(requires: JavaRequires): ModelWriter {
         buffer.write("requires ")
         writeAccessibilityModifier(requires.modifiers)
@@ -468,7 +462,6 @@ class ObfuscateModelWriter(val clazzInfos: List<ClazzInfo>) : ModelWriter {
         return this
     }
 
-    /** {@inheritDoc}  */
     override fun writeModuleUses(uses: JavaUses): ModelWriter {
         buffer.write("uses ")
         buffer.write(uses.service.name)

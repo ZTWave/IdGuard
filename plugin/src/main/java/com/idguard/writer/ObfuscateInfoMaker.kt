@@ -40,7 +40,7 @@ object ObfuscateInfoMaker {
             val staticMethodInfos = clazzinfo.methodList.filter { it.modifier.contains("static") }
             if (staticMethodInfos.isNotEmpty()) {
                 for (method in staticMethodInfos) {
-                    val raw = clazzinfo.fullyQualifiedName + "." + method.name
+                    val raw = clazzinfo.fullyQualifiedName + "." + method.rawName
                     val obfuscate =
                         clazzinfo.fullyObfuscateQualifiedName + "." + method.obfuscateName
                     mayImportsModality[raw] = obfuscate
@@ -119,7 +119,7 @@ object ObfuscateInfoMaker {
             val javaMethod = it as? DefaultJavaMethod ?: return@forEach
             val methodInfo =
                 obfuscateMethodsInfo.find { method -> method.isCorrespondingJavaMethod(javaMethod) }
-            methodInfo?.name?.let { name ->
+            methodInfo?.rawName?.let { name ->
                 javaMethod.name = name
             }
             result.add(javaMethod)

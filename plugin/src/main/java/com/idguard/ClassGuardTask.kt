@@ -3,12 +3,16 @@ package com.idguard
 import com.idguard.modal.ClazzInfo
 import com.idguard.modal.MethodInfo
 import com.idguard.utils.*
+import com.idguard.writer.ObfuscateModelWriter
 import com.thoughtworks.qdox.JavaProjectBuilder
+import com.thoughtworks.qdox.library.ClassLibraryBuilder
+import com.thoughtworks.qdox.library.SortedClassLibraryBuilder
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.FileTree
 import org.gradle.api.tasks.TaskAction
 import java.io.File
 import javax.inject.Inject
+
 
 open class ClassGuardTask @Inject constructor(
     private val variantName: String,
@@ -25,6 +29,7 @@ open class ClassGuardTask @Inject constructor(
     private val funNameMapping = mutableMapOf<String, String>()
 
     private val mappingName = "class_guard_mapping.text"
+    private val modelWriter = ObfuscateModelWriter()
 
     /**
      * only for java source file
@@ -38,9 +43,14 @@ open class ClassGuardTask @Inject constructor(
         if (!javaSrc.exists()) {
             throw RuntimeException("java src -> $javaFile is not exits")
         }
-        val javaProjectBuilder = JavaProjectBuilder().apply {
+        val libraryBuilder: ClassLibraryBuilder = SortedClassLibraryBuilder()/*.apply {
+            setModelWriterFactory { modelWriter }
+        }*/
+        libraryBuilder.appendClassLoader(ClassLoader.getSystemClassLoader())
+        val javaProjectBuilder = JavaProjectBuilder(libraryBuilder).apply {
             addSourceTree(javaSrc)
         }
+
         println("class size -> ${javaProjectBuilder.classes.size} module size -> ${javaProjectBuilder.modules.size}")
         fillClazzInfoBelongFile(javaProjectBuilder, javaFilesTree)
         println("class info parent nested class analyze finished.")
@@ -58,15 +68,16 @@ open class ClassGuardTask @Inject constructor(
         fillObfuscateFullyQualifiedName()
         println("fill obfuscated fully qualified name finished.")
 
-        /*println("start obfuscate...")
+        println("start obfuscate...")
         obfuscateJavaFile(javaFilesTree)
+
         //manifest 内容替换
         updateManifest()
 
         //替换layout中的自定义view
-        updateLayoutXml()*/
+        updateLayoutXml()
 
-        printInfos()
+        //printInfos()
 
         //outputMapping()
     }
@@ -80,7 +91,7 @@ open class ClassGuardTask @Inject constructor(
             println("fullyQualifiedName -> ${it.fullyQualifiedName} obfuscateQualifiedName -> ${it.fullyObfuscateQualifiedName}")
             println("file -> ${it.belongFile} belongFileObfuscateName -> ${it.belongFileObfuscateName}")
             val methodPrint =
-                it.methodList.map { me -> "${me.name} -> ${me.obfuscateName} \n ${me.methodBody}" }
+                it.methodList.map { me -> "${me.rawName} -> ${me.obfuscateName} \n ${me.methodBody}" }
             println("method -> $methodPrint")
             val fieldsPrint =
                 it.fieldList.map { field -> "${field.name} -> ${field.obfuscateName}" }
@@ -121,11 +132,11 @@ open class ClassGuardTask @Inject constructor(
             val clazzInfo = javaClass.parser()
             val packageAbsolutePath =
                 javaSrcPath + clazzInfo.packageName.replaceWords(".", File.separator)
-            println("filePath -> $packageAbsolutePath")
+            //println("filePath -> $packageAbsolutePath")
             val leftPath = clazzInfo.fullyQualifiedName.replace(clazzInfo.packageName, "")
             //package name can't same as class name
             val fileName = leftPath.split(".").filterNot { t -> t.isBlank() }[0]
-            println("fileName -> $fileName")
+            //println("fileName -> $fileName")
             val sourceFile =
                 File(packageAbsolutePath + File.separator + fileName + javaFileExtensionName)
             if (sourceFile.exists()) {
@@ -196,9 +207,9 @@ open class ClassGuardTask @Inject constructor(
             val parentMethods = mutableListOf<MethodInfo>()
             findUpperNodeMethods(clazzInfo, parentMethods)
             println()
-            println("base -> ${clazzInfo.packageName}.${clazzInfo.rawClazzName} parent nodes method except override -> ${parentMethods.map { it.name }}")
+            println("base -> ${clazzInfo.packageName}.${clazzInfo.rawClazzName} parent nodes method except override -> ${parentMethods.map { it.rawName }}")
             clazzInfo.methodList.forEach { method ->
-                val find = parentMethods.find { it.isSameParams(method) }
+                val find = parentMethods.find { it.isSameFun(method) }
                 find?.let {
                     method.obfuscateName = it.obfuscateName
                 }
@@ -287,12 +298,12 @@ open class ClassGuardTask @Inject constructor(
         println()
         println("replacing file $file ...")
 
-        clazzInfoList.forEach { clazzinfo ->
+        clazzInfoList.forEach { currentClazzinfo ->
             //replace self class name
-            if (clazzinfo.isBelongThisFile(file)) {
+            if (currentClazzinfo.isBelongThisFile(file)) {
                 fileContent = fileContent.replaceWords(
-                    clazzinfo.rawClazzName,
-                    clazzinfo.obfuscateClazzName
+                    currentClazzinfo.rawClazzName,
+                    currentClazzinfo.obfuscateClazzName
                 )
             }
 
@@ -303,27 +314,36 @@ open class ClassGuardTask @Inject constructor(
             //list this file may import
             val mayImportsModality = mutableListOf<String>()
             val clazzLayerNames =
-                clazzinfo.fullyQualifiedName.replace("${clazzinfo.packageName}.", "").split(".")
+                currentClazzinfo.fullyQualifiedName.replace("${currentClazzinfo.packageName}.", "")
+                    .split(".")
             for (layer in clazzLayerNames.size downTo 1) {
                 val assumeModality =
-                    clazzinfo.packageName + "." + clazzLayerNames.take(layer).joinToString(".")
+                    currentClazzinfo.packageName + "." + clazzLayerNames.take(layer)
+                        .joinToString(".")
                 mayImportsModality.add(assumeModality)
             }
 
-            println("current checking clazzinfo -> ${clazzinfo.fullyQualifiedName}")
+            println("current checking clazzinfo -> ${currentClazzinfo.fullyQualifiedName}")
             println("import maybe $mayImportsModality")
 
             val needTryReplaceQuotePairs = mutableListOf<Pair<String, String>>()
+            //replace class declaration
             if (
                 fileImports.hasOneOf(mayImportsModality) { s, s1 -> s == s1 }
-                || file.packagePath() == clazzinfo.packageName
+                || file.packagePath() == currentClazzinfo.packageName
                 //import * maybe not stable in some cases
-                || fileImports.contains("${clazzinfo.packageName}.*")
+                || fileImports.contains("${currentClazzinfo.packageName}.*")
             ) {
                 //should replace with a string that fully qualified name delete package name
-                val raw = clazzinfo.fullyQualifiedName.replace("${clazzinfo.packageName}.", "")
+                val raw = currentClazzinfo.fullyQualifiedName.replace(
+                    "${currentClazzinfo.packageName}.",
+                    ""
+                )
                 val obfuscate =
-                    clazzinfo.fullyObfuscateQualifiedName.replace("${clazzinfo.packageName}.", "")
+                    currentClazzinfo.fullyObfuscateQualifiedName.replace(
+                        "${currentClazzinfo.packageName}.",
+                        ""
+                    )
                 println("replace $raw to $obfuscate")
                 val classLayerCount = raw.split(".").size
                 println("classLayerCount = $classLayerCount")
@@ -333,9 +353,37 @@ open class ClassGuardTask @Inject constructor(
                     println("file -> $file do replace $oldValue to $newValue")
                     needTryReplaceQuotePairs.add(Pair(oldValue, newValue))
                 }
+
+                //replace self method and implement extend override method name
+                //current file clazz info
+                val methods = currentClazzinfo.methodList
+                for (method in methods) {
+                    if (method.obfuscateName.isNotBlank()) {
+                        needTryReplaceQuotePairs.add(Pair(method.rawName, method.obfuscateName))
+                        needTryReplaceQuotePairs.add(
+                            Pair(
+                                "super.${method.rawName}",
+                                "super.${method.obfuscateName}"
+                            )
+                        )
+                        if (method.isStatic()) {
+                            needTryReplaceQuotePairs.add(
+                                Pair(
+                                    "import static ${currentClazzinfo.fullyQualifiedName}.${method.rawName};",
+                                    "import static ${currentClazzinfo.fullyQualifiedName}.${method.obfuscateName};",
+                                )
+                            )
+                        }
+                    }
+                }
             }
 
+
             needTryReplaceQuotePairs.sortByDescending { it.first.length }
+
+            println("replace info ........start")
+            println(needTryReplaceQuotePairs)
+            println("replace info ........ends")
 
             //do replace
             for (replacement in needTryReplaceQuotePairs) {
@@ -345,14 +393,17 @@ open class ClassGuardTask @Inject constructor(
             //replace imports
             fileContent = fileContent
                 .replaceWords(
-                    "import ${clazzinfo.packageName}.${clazzinfo.rawClazzName};",
-                    "import ${clazzinfo.packageName}.${clazzinfo.obfuscateClazzName};"
+                    "import ${currentClazzinfo.packageName}.${currentClazzinfo.rawClazzName};",
+                    "import ${currentClazzinfo.packageName}.${currentClazzinfo.obfuscateClazzName};"
                 )
                 .replaceWords(
-                    "import ${clazzinfo.fullyQualifiedName};",
-                    "import ${clazzinfo.fullyObfuscateQualifiedName};"
+                    "import ${currentClazzinfo.fullyQualifiedName};",
+                    "import ${currentClazzinfo.fullyObfuscateQualifiedName};"
                 )
-                .replaceWords(clazzinfo.fullyQualifiedName, clazzinfo.fullyObfuscateQualifiedName)
+                .replaceWords(
+                    currentClazzinfo.fullyQualifiedName,
+                    currentClazzinfo.fullyObfuscateQualifiedName
+                )
         }
 
         //find file obfuscate name
