@@ -88,19 +88,19 @@ private val fieldNameObMap = mutableMapOf<String, String>()
 private val methodNameObMap = mutableMapOf<String, String>()
 
 private fun getOrGenClassObfuscateName(rawName: String): String {
-    return clazzNameObMap.getOrElse(rawName) {
+    return clazzNameObMap.getOrPut(rawName) {
         RandomNameHelper.genClassName(Pair(4, 8))
     }
 }
 
 private fun getOrGenFieldObfuscateName(rawName: String): String {
-    return fieldNameObMap.getOrElse(rawName) {
+    return fieldNameObMap.getOrPut(rawName) {
         RandomNameHelper.genNames(1, Pair(2, 8), false, true).first()
     }
 }
 
 private fun getOrGenMethodObfuscateName(rawName: String): String {
-    return methodNameObMap.getOrElse(rawName) {
+    return methodNameObMap.getOrPut(rawName) {
         RandomNameHelper.genNames(1, Pair(4, 12), false, true).first()
     }
 }
