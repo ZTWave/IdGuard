@@ -92,6 +92,8 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
         sMethod("123");
 
         int a = 3;
+
+        App.SPHolder sp = new App.SPHolder(MainActivity.this);
     }
 
     @Override
