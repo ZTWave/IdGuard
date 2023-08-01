@@ -105,7 +105,7 @@ open class ClassGuardTask @Inject constructor(
                 it.methodList.map { me -> "${me.rawName} -> ${me.obfuscateName} \n ${me.methodBody}" }
             println("method -> $methodPrint")
             val fieldsPrint =
-                it.fieldList.map { field -> "${field.name} -> ${field.obfuscateName}" }
+                it.fieldList.map { field -> "${field.rawName} -> ${field.obfuscateName}" }
             println("fields -> $fieldsPrint")
             println("class body")
             println(it.bodyInfo)

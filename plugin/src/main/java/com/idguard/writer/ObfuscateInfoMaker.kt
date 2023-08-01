@@ -2,6 +2,7 @@ package com.idguard.writer
 
 import com.idguard.modal.ClazzInfo
 import com.idguard.modal.FieldInfo
+import com.idguard.utils.findCanReplacePair
 import com.idguard.utils.findImportsClassInfo
 import com.idguard.utils.findUpperNodes
 import com.idguard.utils.replaceWords
@@ -9,6 +10,7 @@ import com.thoughtworks.qdox.model.JavaClass
 import com.thoughtworks.qdox.model.JavaConstructor
 import com.thoughtworks.qdox.model.JavaField
 import com.thoughtworks.qdox.model.JavaMethod
+import com.thoughtworks.qdox.model.JavaParameter
 import com.thoughtworks.qdox.model.JavaType
 import com.thoughtworks.qdox.model.impl.DefaultJavaConstructor
 import com.thoughtworks.qdox.model.impl.DefaultJavaField
@@ -43,9 +45,9 @@ object ObfuscateInfoMaker {
             val staticMethodInfos = clazzinfo.methodList.filter { it.modifier.contains("static") }
             if (staticMethodInfos.isNotEmpty()) {
                 for (method in staticMethodInfos) {
-                    val raw = clazzinfo.fullyQualifiedName + "." + method.rawName
+                    val raw = "static " + clazzinfo.fullyQualifiedName + "." + method.rawName
                     val obfuscate =
-                        clazzinfo.fullyObfuscateQualifiedName + "." + method.obfuscateName
+                        "static " + clazzinfo.fullyObfuscateQualifiedName + "." + method.obfuscateName
                     mayImportsModality[raw] = obfuscate
                 }
             }
@@ -54,7 +56,7 @@ object ObfuscateInfoMaker {
             val staticFieldInfo = clazzinfo.fieldList.filter { it.modifier.contains("static") }
             if (staticFieldInfo.isNotEmpty()) {
                 for (field in staticFieldInfo) {
-                    val raw = "static " + clazzinfo.fullyQualifiedName + "." + field.name
+                    val raw = "static " + clazzinfo.fullyQualifiedName + "." + field.rawName
                     val obfuscate =
                         "static " + clazzinfo.fullyObfuscateQualifiedName + "." + field.obfuscateName
                     mayImportsModality[raw] = obfuscate
@@ -81,11 +83,6 @@ object ObfuscateInfoMaker {
     fun className(cls: JavaClass, clazzInfos: List<ClazzInfo>): String {
         return clazzInfos.find { it.isCorrespondingJavaClass(cls) }?.obfuscateClazzName
             ?: throw RuntimeException("class ${cls.fullyQualifiedName} can not find in this given classInfos")
-    }
-
-    fun className(javaType: JavaType, clazzInfos: List<ClazzInfo>): String {
-        return clazzInfos.find { it.isCorrespondingJavaType(javaType) }?.obfuscateClazzName
-            ?: throw RuntimeException("class ${javaType.fullyQualifiedName} can not find in this given classInfos")
     }
 
     fun field(rawFields: List<JavaField>, obfuscateFieldInfo: List<FieldInfo>): List<JavaField> {
@@ -116,9 +113,9 @@ object ObfuscateInfoMaker {
             javaConstructor.name = name
             fields.forEach { field ->
                 javaConstructor.sourceCode = javaConstructor.sourceCode.replaceWords(
-                    "this.${field.name}",
+                    "this.${field.rawName}",
                     "this.${field.obfuscateName}"
-                ).replaceWords(field.name, field.obfuscateName)
+                ).replaceWords(field.rawName, field.obfuscateName)
             }
             result.add(javaConstructor)
         }
@@ -141,29 +138,106 @@ object ObfuscateInfoMaker {
         needReplaceField.addAll(upperUsefulFields)
         needReplaceField.addAll(currentClazzInfo.fieldList)
 
-        val r = findImportsClassInfo(currentClazzInfo, clazzInfos)
-        println("r ${currentClazzInfo.rawClazzName} -> ${r.map { it.rawClazzName }}")
+        val mayImportClassInfo = findImportsClassInfo(currentClazzInfo, clazzInfos)
+        println("r ${currentClazzInfo.fullyQualifiedName} import -> ${mayImportClassInfo.map { it.fullyQualifiedName }}")
+        val replaceMap = findCanReplacePair(currentClazzInfo, mayImportClassInfo)
+        println("r ${currentClazzInfo.fullyQualifiedName} replace map -> $replaceMap")
 
         val copy = methods.toList()
         val result = mutableListOf<JavaMethod>()
         copy.forEach {
             val javaMethod = it as? DefaultJavaMethod ?: return@forEach
+
+            //name
             val methodInfo =
                 currentClazzInfo.methodList.find { method ->
                     method.isCorrespondingJavaMethod(
                         javaMethod
                     )
                 }
-            methodInfo?.rawName?.let { name ->
-                javaMethod.name = name
+            val newName = if (methodInfo?.obfuscateName.isNullOrBlank()) {
+                methodInfo?.rawName
+            } else {
+                methodInfo?.obfuscateName
+            }
+            newName?.let {
+                javaMethod.name = it
+            }
+
+            //source code replace
+            if (methodInfo?.isOverride == true && methodInfo.obfuscateName.isNotBlank()) {
+                javaMethod.sourceCode = javaMethod.sourceCode.replaceWords(
+                    "super.${methodInfo.rawName}",
+                    "super.${methodInfo.obfuscateName}",
+                )
             }
             needReplaceField.forEach { field ->
-                val raw = field.name
+                val raw = field.rawName
                 val obfuscate = field.obfuscateName
+                javaMethod.sourceCode = javaMethod.sourceCode.replaceWords(raw, obfuscate)
+            }
+            replaceMap.forEach { (raw, obfuscate) ->
                 javaMethod.sourceCode = javaMethod.sourceCode.replaceWords(raw, obfuscate)
             }
             result.add(javaMethod)
         }
         return result
+    }
+
+    private fun sortDescendingClazzInfoQualifiedNamePairs(clazzInfos: List<ClazzInfo>): List<Pair<String, String>> {
+        val pairs = mutableListOf<Pair<String, String>>()
+        clazzInfos.forEach { clazzInfo ->
+            pairs.add(Pair(clazzInfo.fullyQualifiedName, clazzInfo.fullyObfuscateQualifiedName))
+        }
+        pairs.sortByDescending {
+            it.first.length
+        }
+        return pairs
+    }
+
+    fun returnTypeName(type: JavaType, clazzInfos: List<ClazzInfo>): String {
+        var result = type.genericCanonicalName
+        val pairs = sortDescendingClazzInfoQualifiedNamePairs(clazzInfos)
+        pairs.forEach { (o, b) ->
+            result = result.replace(o, b)
+        }
+        return result
+    }
+
+    fun exceptionGenericCanonicalName(
+        exceptionJavaClass: JavaClass,
+        clazzInfos: List<ClazzInfo>
+    ): String {
+        val correspondingClassInfo =
+            clazzInfos.find { it.isCorrespondingJavaClass(exceptionJavaClass) }
+                ?: return exceptionJavaClass.genericCanonicalName
+        return correspondingClassInfo.obfuscateGenericCanonicalName()
+    }
+
+    fun superClassName(superClass: JavaType, clazzInfos: List<ClazzInfo>): String {
+        var str = superClass.genericCanonicalName
+        val pairs = sortDescendingClazzInfoQualifiedNamePairs(clazzInfos)
+        pairs.forEach { (o, b) ->
+            str = str.replace(o, b)
+        }
+        return str
+    }
+
+    fun implClassName(javaType: JavaType, clazzInfos: List<ClazzInfo>): String {
+        var str = javaType.genericCanonicalName
+        val pairs = sortDescendingClazzInfoQualifiedNamePairs(clazzInfos)
+        pairs.forEach { (o, b) ->
+            str = str.replace(o, b)
+        }
+        return str
+    }
+
+    fun parameterTypeName(parameter: JavaParameter, clazzInfos: List<ClazzInfo>): String {
+        var str = parameter.genericCanonicalName
+        val pairs = sortDescendingClazzInfoQualifiedNamePairs(clazzInfos)
+        pairs.forEach { (o, b) ->
+            str = str.replace(o, b)
+        }
+        return str
     }
 }

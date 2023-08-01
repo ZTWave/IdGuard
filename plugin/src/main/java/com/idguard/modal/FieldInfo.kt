@@ -4,13 +4,13 @@ import com.idguard.utils.elementEquals
 import com.thoughtworks.qdox.model.JavaField
 
 data class FieldInfo(
-    val name: String = "",
+    val rawName: String = "",
     val type: String = "",
     val modifier: List<String> = emptyList(),
     var obfuscateName: String = ""
 ) {
     fun isCorrespondingJavaField(javaField: JavaField): Boolean {
-        return name == javaField.name
+        return rawName == javaField.name
             && type == javaField.type.fullyQualifiedName
             && modifier.elementEquals(javaField.modifiers)
     }

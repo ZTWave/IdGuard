@@ -106,4 +106,8 @@ data class ClazzInfo(
         val belongFile = belongFile ?: return false
         return belongFile.absolutePath == file.absolutePath
     }
+
+    fun obfuscateGenericCanonicalName(): String {
+       return fullyObfuscateQualifiedName.replace('$', '.');
+    }
 }

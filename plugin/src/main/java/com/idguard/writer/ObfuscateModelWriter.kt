@@ -1,6 +1,7 @@
 package com.idguard.writer
 
 import com.idguard.modal.ClazzInfo
+import com.idguard.utils.RandomNameHelper
 import com.thoughtworks.qdox.model.*
 import com.thoughtworks.qdox.model.JavaModuleDescriptor.*
 import com.thoughtworks.qdox.model.expression.AnnotationValue
@@ -15,6 +16,8 @@ class ObfuscateModelWriter() : ModelWriter {
     val buffer = IndentBuffer()
 
     var clazzInfos: List<ClazzInfo> = emptyList()
+
+    val parameterNameMap = mutableMapOf<String, String>()
 
     override fun writeSource(source: JavaSource): ModelWriter? {
         // package statement
@@ -82,12 +85,9 @@ class ObfuscateModelWriter() : ModelWriter {
             val className = cls.superClass.fullyQualifiedName
             if ("java.lang.Object" != className && "java.lang.Enum" != className) {
                 buffer.write(" extends ")
-                //buffer.write(cls.superClass.genericCanonicalName)
-                try {
-                    buffer.write(ObfuscateInfoMaker.className(cls.superClass, clazzInfos))
-                } catch (e: RuntimeException) {
-                    buffer.write(cls.superClass.genericCanonicalName)
-                }
+                //buffer.write(cls.superClass.genericCanonicalName)s
+                val extendStr = ObfuscateInfoMaker.superClassName(cls.superClass, clazzInfos)
+                buffer.write(extendStr)
             }
         }
 
@@ -97,7 +97,8 @@ class ObfuscateModelWriter() : ModelWriter {
             val iter: ListIterator<JavaType> = cls.implements.listIterator()
             while (iter.hasNext()) {
                 //buffer.write(iter.next().genericCanonicalName)
-                buffer.write(ObfuscateInfoMaker.className(iter.next(), clazzInfos))
+                val implmentStr: String = ObfuscateInfoMaker.implClassName(iter.next(), clazzInfos)
+                buffer.write(implmentStr)
                 if (iter.hasNext()) {
                     buffer.write(", ")
                 }
@@ -241,11 +242,17 @@ class ObfuscateModelWriter() : ModelWriter {
         commentHeader(method)
         writeAccessibilityModifier(method.modifiers)
         writeNonAccessibilityModifiers(method.modifiers)
-        buffer.write(method.returnType.genericCanonicalName)
+
+        //buffer.write(method.returnType.genericCanonicalName)
+        val returnTypeGenericCanonicalName =
+            ObfuscateInfoMaker.returnTypeName(method.returnType, clazzInfos)
+        buffer.write(returnTypeGenericCanonicalName)
+
         buffer.write(' ')
         buffer.write(method.name)
         buffer.write('(')
         val iter: ListIterator<JavaParameter> = method.parameters.listIterator()
+        regenParametersName(method.parameters)
         while (iter.hasNext()) {
             writeParameter(iter.next())
             if (iter.hasNext()) {
@@ -257,7 +264,9 @@ class ObfuscateModelWriter() : ModelWriter {
             buffer.write(" throws ")
             val excIter: Iterator<JavaClass> = method.exceptions.iterator()
             while (excIter.hasNext()) {
-                buffer.write(excIter.next().genericCanonicalName)
+                val newName =
+                    ObfuscateInfoMaker.exceptionGenericCanonicalName(excIter.next(), clazzInfos)
+                buffer.write(newName)
                 if (excIter.hasNext()) {
                     buffer.write(", ")
                 }
@@ -274,6 +283,13 @@ class ObfuscateModelWriter() : ModelWriter {
             buffer.newline()
         }
         return this
+    }
+
+    private fun regenParametersName(parameters: List<JavaParameter>) {
+        val obNames = RandomNameHelper.genNames(parameters.size, pair = Pair(1, 5))
+        parameters.forEachIndexed { index, javaParameter ->
+            parameterNameMap[javaParameter.name] = obNames[index]
+        }
     }
 
     private fun writeNonAccessibilityModifiers(modifiers: Collection<String>) {
@@ -330,12 +346,16 @@ class ObfuscateModelWriter() : ModelWriter {
 
     override fun writeParameter(parameter: JavaParameter): ModelWriter {
         commentHeader(parameter)
-        buffer.write(parameter.genericCanonicalName)
+        //buffer.write(parameter.genericCanonicalName)
+        val newClassTypeName: String = ObfuscateInfoMaker.parameterTypeName(parameter, clazzInfos)
+        buffer.write(newClassTypeName)
         if (parameter.isVarArgs) {
             buffer.write("...")
         }
         buffer.write(' ')
-        buffer.write(parameter.name)
+        //val newName = parameterNameMap[parameter.name] ?: parameter.name
+        val newName = parameter.name
+        buffer.write(newName)
         return this
     }
 

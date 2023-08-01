@@ -12,7 +12,7 @@ fun JavaClass.parser(): ClazzInfo {
 
     val parentJavaSource = parentSource
 
-    val obfuscateClazzName = RandomNameHelper.genClassName(Pair(4, 8))
+    val obfuscateClazzName = getOrGenClassObfuscateName(clazzname)
 
     val methods = this.methods.map { javaMethod ->
         val isOverride = javaMethod.annotations.find {
@@ -22,8 +22,11 @@ fun JavaClass.parser(): ClazzInfo {
             //temporary can't identify this method from our project or some library, jars
             //it will be fill after all java file is transform to clazzInfo
             ""
+        } else if (javaMethod.modifiers.contains("native")) {
+            //don't obfuscate native method
+            javaMethod.name
         } else {
-            RandomNameHelper.genNames(1, Pair(4, 12), false, true).first()
+            getOrGenMethodObfuscateName(javaMethod.name)
         }
         MethodInfo(
             modifier = javaMethod.modifiers,
@@ -37,10 +40,10 @@ fun JavaClass.parser(): ClazzInfo {
     }
 
     val fields = fields.map { javaField ->
-        val obfuscateName = RandomNameHelper.genNames(1, Pair(2, 8), false, true).first()
+        val obfuscateName = getOrGenFieldObfuscateName(javaField.name)
         FieldInfo(
             modifier = javaField.modifiers,
-            name = javaField.name,
+            rawName = javaField.name,
             type = javaField.type.fullyQualifiedName,
             obfuscateName = obfuscateName
         )
@@ -75,4 +78,29 @@ fun JavaClass.parser(): ClazzInfo {
         imports = parentJavaSource.imports,
         bodyInfo = codeBlock,
     )
+}
+
+/**
+ * raw an obfuscate name cache
+ */
+private val clazzNameObMap = mutableMapOf<String, String>()
+private val fieldNameObMap = mutableMapOf<String, String>()
+private val methodNameObMap = mutableMapOf<String, String>()
+
+private fun getOrGenClassObfuscateName(rawName: String): String {
+    return clazzNameObMap.getOrElse(rawName) {
+        RandomNameHelper.genClassName(Pair(4, 8))
+    }
+}
+
+private fun getOrGenFieldObfuscateName(rawName: String): String {
+    return fieldNameObMap.getOrElse(rawName) {
+        RandomNameHelper.genNames(1, Pair(2, 8), false, true).first()
+    }
+}
+
+private fun getOrGenMethodObfuscateName(rawName: String): String {
+    return methodNameObMap.getOrElse(rawName) {
+        RandomNameHelper.genNames(1, Pair(4, 12), false, true).first()
+    }
 }

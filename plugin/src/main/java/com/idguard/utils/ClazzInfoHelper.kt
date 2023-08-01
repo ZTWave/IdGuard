@@ -15,8 +15,8 @@ fun findUpperNodes(rootNode: ClazzInfo, nodes: MutableList<ClazzInfo>) {
     }
 }
 
-fun findImportsClassInfo(searchInfo: ClazzInfo, allInfos: List<ClazzInfo>): MutableList<ClazzInfo> {
-    val mayImportClazzInfo = mutableListOf<ClazzInfo>()
+fun findImportsClassInfo(searchInfo: ClazzInfo, allInfos: List<ClazzInfo>): List<ClazzInfo> {
+    val mayImportClazzInfo = mutableSetOf<ClazzInfo>()
     //current file imports
     val fileImports = searchInfo.imports
 
@@ -55,10 +55,13 @@ fun findImportsClassInfo(searchInfo: ClazzInfo, allInfos: List<ClazzInfo>): Muta
             mayImportClazzInfo.add(classInfo)
         }
     }
-    return mayImportClazzInfo
+    return mayImportClazzInfo.toList()
 }
 
-fun findCanReplacePair(rootClazzInfo: ClazzInfo, importClazzInfo: List<ClazzInfo>) {
+fun findCanReplacePair(
+    rootClazzInfo: ClazzInfo,
+    importClazzInfo: List<ClazzInfo>
+): List<Pair<String, String>> {
     val replacePair = mutableListOf<Pair<String, String>>()
     importClazzInfo.forEach { clazzinfo ->
         //if clazz info has static method
@@ -84,7 +87,7 @@ fun findCanReplacePair(rootClazzInfo: ClazzInfo, importClazzInfo: List<ClazzInfo
         val staticFieldInfo = clazzinfo.fieldList.filter { it.modifier.contains("static") }
         if (staticFieldInfo.isNotEmpty()) {
             for (field in staticFieldInfo) {
-                val raw = clazzinfo.fullyQualifiedName + "." + field.name
+                val raw = clazzinfo.fullyQualifiedName + "." + field.rawName
                 val obfuscate =
                     clazzinfo.fullyObfuscateQualifiedName + "." + field.obfuscateName
                 val layerCount = raw.split(".").size
@@ -97,11 +100,46 @@ fun findCanReplacePair(rootClazzInfo: ClazzInfo, importClazzInfo: List<ClazzInfo
         }
 
         //class name
-        replacePair.add(Pair(clazzinfo.rawClazzName, clazzinfo.obfuscateClazzName))
+        if (clazzinfo.parentNode != null) {
+            val layerArray = clazzinfo.fullyQualifiedName.split(".")
+            val obLayerArray = clazzinfo.fullyObfuscateQualifiedName.split(".")
+            val layerCount = layerArray.size
+            for (count in layerCount downTo 1) {
+                val r = layerArray.takeLast(count).joinToString(".")
+                val o = obLayerArray.takeLast(count).joinToString(".")
+                replacePair.add(Pair(r, o))
+            }
+        } else {
+            replacePair.add(Pair(clazzinfo.rawClazzName, clazzinfo.obfuscateClazzName))
+        }
 
         //class public protect default field
-        replacePair.add(Pair(clazzinfo.rawClazzName, clazzinfo.obfuscateClazzName))
+        val methods = clazzinfo.methodList.filterNot {
+            it.modifier.contains("static") || it.modifier.contains("private") ||
+                if (rootClazzInfo.packageName != clazzinfo.packageName) {
+                    //not same package
+                    it.modifier.isEmpty() || it.modifier.contains("protect")
+                } else {
+                    true
+                }
+        }
+        methods.forEach { methodInfo ->
+            replacePair.add(Pair(methodInfo.rawName, methodInfo.obfuscateName))
+        }
 
+        //class public protect default method
+        val fields = clazzinfo.fieldList.filterNot {
+            it.modifier.contains("static") || it.modifier.contains("private") ||
+                if (rootClazzInfo.packageName != clazzinfo.packageName) {
+                    //not same package
+                    it.modifier.isEmpty() || it.modifier.contains("protect")
+                } else {
+                    true
+                }
+        }
+        fields.forEach { fieldInfo ->
+            replacePair.add(Pair(fieldInfo.rawName, fieldInfo.obfuscateName))
+        }
     }
-
+    return replacePair.sortedByDescending { it.first.length }
 }
