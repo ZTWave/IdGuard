@@ -42,6 +42,8 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
     @BindView(R.id.donine_text)
     ATxtCusView textView;
 
+    List<DataA> list;
+
     public int a = 0;
 
     @Override
