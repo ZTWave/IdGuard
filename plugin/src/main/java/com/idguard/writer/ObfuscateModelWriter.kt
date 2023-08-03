@@ -1,7 +1,6 @@
 package com.idguard.writer
 
 import com.idguard.modal.ClazzInfo
-import com.idguard.utils.RandomNameHelper
 import com.thoughtworks.qdox.model.*
 import com.thoughtworks.qdox.model.JavaModuleDescriptor.*
 import com.thoughtworks.qdox.model.expression.AnnotationValue
@@ -17,9 +16,8 @@ class ObfuscateModelWriter() : ModelWriter {
 
     var clazzInfos: List<ClazzInfo> = emptyList()
 
-    val parameterNameMap = mutableMapOf<String, String>()
-
     override fun writeSource(source: JavaSource): ModelWriter? {
+        debug("do write source -> $source")
         // package statement
         writePackage(source.getPackage())
 
@@ -65,6 +63,8 @@ class ObfuscateModelWriter() : ModelWriter {
      * temporary not consider class is annotation
      */
     override fun writeClass(cls: JavaClass): ModelWriter {
+        debug("do write class -> ${cls.fullyQualifiedName}")
+
         commentHeader(cls)
         writeAccessibilityModifier(cls.modifiers)
         writeNonAccessibilityModifiers(cls.modifiers)
@@ -210,7 +210,10 @@ class ObfuscateModelWriter() : ModelWriter {
         writeAllModifiers(constructor.modifiers)
         buffer.write(constructor.name)
         buffer.write('(')
-        val iter: ListIterator<JavaParameter> = constructor.parameters.listIterator()
+
+        val obResult = ObfuscateInfoMaker.parametersName(constructor.parameters)
+        val obParameter = obResult.first
+        val iter: ListIterator<JavaParameter> = obParameter.listIterator()
         while (iter.hasNext()) {
             writeParameter(iter.next())
             if (iter.hasNext()) {
@@ -229,9 +232,12 @@ class ObfuscateModelWriter() : ModelWriter {
             }
         }
         buffer.write(" {")
-        buffer.newline()
+        //buffer.newline()
         if (constructor.sourceCode != null) {
-            buffer.write(constructor.sourceCode)
+            val obSourceCode =
+                ObfuscateInfoMaker.sourceCode(constructor.sourceCode, obResult.second)
+            buffer.write(obSourceCode)
+//            buffer.write(constructor.sourceCode)
         }
         buffer.write('}')
         buffer.newline()
@@ -251,8 +257,10 @@ class ObfuscateModelWriter() : ModelWriter {
         buffer.write(' ')
         buffer.write(method.name)
         buffer.write('(')
-        val iter: ListIterator<JavaParameter> = method.parameters.listIterator()
-        regenParametersName(method.parameters)
+
+        val obParamsResult = ObfuscateInfoMaker.parametersName(method.parameters)
+        val obParams = obParamsResult.first
+        val iter: ListIterator<JavaParameter> = obParams.listIterator()
         while (iter.hasNext()) {
             writeParameter(iter.next())
             if (iter.hasNext()) {
@@ -274,8 +282,12 @@ class ObfuscateModelWriter() : ModelWriter {
         }
         if (method.sourceCode != null && method.sourceCode.isNotEmpty()) {
             buffer.write(" {")
-            buffer.newline()
-            buffer.write(method.sourceCode)
+            //buffer.newline()
+            debug("replace source code -> ${method.sourceCode}")
+            val obSourceCode =
+                ObfuscateInfoMaker.sourceCode(method.sourceCode, obParamsResult.second)
+            buffer.write(obSourceCode)
+
             buffer.write('}')
             buffer.newline()
         } else {
@@ -283,13 +295,6 @@ class ObfuscateModelWriter() : ModelWriter {
             buffer.newline()
         }
         return this
-    }
-
-    private fun regenParametersName(parameters: List<JavaParameter>) {
-        val obNames = RandomNameHelper.genNames(parameters.size, pair = Pair(1, 5))
-        parameters.forEachIndexed { index, javaParameter ->
-            parameterNameMap[javaParameter.name] = obNames[index]
-        }
     }
 
     private fun writeNonAccessibilityModifiers(modifiers: Collection<String>) {
@@ -353,9 +358,7 @@ class ObfuscateModelWriter() : ModelWriter {
             buffer.write("...")
         }
         buffer.write(' ')
-        //val newName = parameterNameMap[parameter.name] ?: parameter.name
-        val newName = parameter.name
-        buffer.write(newName)
+        buffer.write(parameter.name)
         return this
     }
 

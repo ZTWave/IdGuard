@@ -9,8 +9,8 @@ class RandomNameHelper {
         private val DefaultNameLengthPair = Pair(4, 9)
 
         private const val numberAndLine = "1234567890_"
-        private const val charsLatter = "abcdefghijklmnopqrstuvwxyz"
-        private val charsUpper = charsLatter.uppercase()
+        private val charsLatter = ('a'..'z').joinToString("")
+        private val charsUpper = ('A'..'Z').joinToString("")
 
         private val dic = run {
             val dicSb = StringBuilder(charsLatter)
@@ -54,11 +54,10 @@ class RandomNameHelper {
             val rNameLength = Random.nextInt(nameLengthMin, nameLengthMax + 1)
             val nameSb = StringBuilder("")
             while (nameSb.length < rNameLength) {
-                val c: Char = if (allLetter) {
-                    letterDic[Random.nextInt(0, letterDic.length)]
-                } else {
+                val c: Char =
                     //判断第一个
                     if (nameSb.isEmpty()) {
+                        //第一个永远为字母
                         if (isFirstLetter) {
                             val cIndex = Random.nextInt(0, charsLatter.length)
                             charsLatter[cIndex]
@@ -67,9 +66,13 @@ class RandomNameHelper {
                             charsUpper[cIndex]
                         }
                     } else {
-                        dic[Random.nextInt(0, dic.length)]
+                        //如果名字全是小写
+                        if (allLetter) {
+                            letterDic[Random.nextInt(0, letterDic.length)]
+                        } else {
+                            dic[Random.nextInt(0, dic.length)]
+                        }
                     }
-                }
                 nameSb.append(c)
             }
             return nameSb.toString()

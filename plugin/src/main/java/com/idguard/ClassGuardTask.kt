@@ -2,18 +2,18 @@ package com.idguard
 
 import com.idguard.modal.ClazzInfo
 import com.idguard.modal.MethodInfo
+import com.idguard.utils.JavaFileParser.parser
 import com.idguard.utils.RandomNameHelper
 import com.idguard.utils.findLayoutDirs
 import com.idguard.utils.findPackageName
 import com.idguard.utils.getRealName
 import com.idguard.utils.javaDirs
 import com.idguard.utils.manifestFile
-import com.idguard.utils.parser
 import com.idguard.utils.replaceWords
 import com.idguard.writer.ObfuscateModelWriter
 import com.thoughtworks.qdox.JavaProjectBuilder
-import com.thoughtworks.qdox.library.ClassLibraryBuilder
-import com.thoughtworks.qdox.library.SortedClassLibraryBuilder
+import com.thoughtworks.qdox.model.JavaClass
+import com.thoughtworks.qdox.model.JavaSource
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.FileTree
 import org.gradle.api.tasks.TaskAction
@@ -54,20 +54,20 @@ open class ClassGuardTask @Inject constructor(
         if (!javaSrc.exists()) {
             throw RuntimeException("java src -> $javaFile is not exits")
         }
-        val libraryBuilder: ClassLibraryBuilder = SortedClassLibraryBuilder()/*.apply {
-            setModelWriterFactory { modelWriter }
-        }*/
-        libraryBuilder.appendClassLoader(ClassLoader.getSystemClassLoader())
-        val javaProjectBuilder = JavaProjectBuilder(libraryBuilder).apply {
+        val javaProjectBuilder = JavaProjectBuilder().apply {
             addSourceTree(javaSrc)
         }
 
-        println("class size -> ${javaProjectBuilder.classes.size} module size -> ${javaProjectBuilder.modules.size}")
-        fillClazzInfoBelongFile(javaProjectBuilder, javaFilesTree)
+        //this source to list will cause element repetition problem
+        val sources = javaProjectBuilder.sources.toSet()
+
+        val allClass = javaProjectBuilder.classes.toSet()
+
+        fillClazzInfoBelongFile(allClass, javaFilesTree)
         println("class info parent nested class analyze finished.")
 
         println("start find class extend and implements node...")
-        relatedClazzNodes(javaProjectBuilder)
+        relatedClazzNodes(allClass)
         println("class info extend and implement analyze finished.")
 
         println("start fill override fun obfuscate name...")
@@ -80,7 +80,7 @@ open class ClassGuardTask @Inject constructor(
         println("fill obfuscated fully qualified name finished.")
 
         println("start obfuscate...")
-        obfuscateJavaFile(javaProjectBuilder)
+        obfuscateJavaFile(sources)
 
         //manifest 内容替换
         updateManifest()
@@ -135,11 +135,8 @@ open class ClassGuardTask @Inject constructor(
         }
     }
 
-    private fun fillClazzInfoBelongFile(
-        javaProjectBuilder: JavaProjectBuilder,
-        javaSourceFileTree: FileTree
-    ) {
-        javaProjectBuilder.classes.forEach { javaClass ->
+    private fun fillClazzInfoBelongFile(classList: Set<JavaClass>, javaSourceFileTree: FileTree) {
+        classList.forEach { javaClass ->
             val clazzInfo = javaClass.parser()
             val packageAbsolutePath =
                 javaSrcPath + clazzInfo.packageName.replaceWords(".", File.separator)
@@ -248,9 +245,9 @@ open class ClassGuardTask @Inject constructor(
     /**
      * 标识类的嵌套类或者接口的第一级继承和实现的关系
      */
-    private fun relatedClazzNodes(javaProjectBuilder: JavaProjectBuilder) {
+    private fun relatedClazzNodes(classes: Set<JavaClass>) {
         //establishing extend and implements node relation
-        javaProjectBuilder.classes.forEach { javaClass ->
+        classes.forEach { javaClass ->
             //this time checking node
             val node =
                 clazzInfoList.find { it.isCorrespondingJavaClass(javaClass) } ?: return@forEach
@@ -295,10 +292,11 @@ open class ClassGuardTask @Inject constructor(
         MappingOutputHelper.write(project, mappingName, outputMap)
     }*/
 
-    private fun obfuscateJavaFile(javaProjectBuilder: JavaProjectBuilder) {
-        val sources = javaProjectBuilder.sources
+    private fun obfuscateJavaFile(sources: Set<JavaSource>) {
+        val obFileNameSourceMap = mutableMapOf<String, String>()
+
         println("sources size -> ${sources.size}")
-        sources.forEach { javaSource ->
+        sources.forEachIndexed { index, javaSource ->
             val writer = modelWriter(clazzInfoList)
             val oneClazzInfo = javaSource.classes.firstOrNull()
                 ?: throw RuntimeException("this source has no java source")
@@ -308,8 +306,16 @@ open class ClassGuardTask @Inject constructor(
                     ?: throw RuntimeException("this class info is null or belong file is null")
             val newFile =
                 belongFile.parentFile.absolutePath + File.separator + clazzInfo.belongFileObfuscateName + javaFileExtensionName
+
+            //belongFile.delete()
+
+            println("index -> $index source class -> ${javaSource.classes.map { it.fullyQualifiedName }}")
             writer.writeSource(javaSource)
-            File(newFile).writeText(writer.toString())
+            obFileNameSourceMap[newFile] = writer.toString()
+        }
+
+        obFileNameSourceMap.forEach { (newFile, source) ->
+            File(newFile).writeText(source)
         }
     }
 

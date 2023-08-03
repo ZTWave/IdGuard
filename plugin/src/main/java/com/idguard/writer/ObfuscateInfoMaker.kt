@@ -2,6 +2,7 @@ package com.idguard.writer
 
 import com.idguard.modal.ClazzInfo
 import com.idguard.modal.FieldInfo
+import com.idguard.utils.RandomNameHelper
 import com.idguard.utils.findCanReplacePair
 import com.idguard.utils.findImportsClassInfo
 import com.idguard.utils.findUpperNodes
@@ -15,6 +16,7 @@ import com.thoughtworks.qdox.model.JavaType
 import com.thoughtworks.qdox.model.impl.DefaultJavaConstructor
 import com.thoughtworks.qdox.model.impl.DefaultJavaField
 import com.thoughtworks.qdox.model.impl.DefaultJavaMethod
+import com.thoughtworks.qdox.model.impl.DefaultJavaParameter
 
 object ObfuscateInfoMaker {
     fun imports(rawImports: List<String>, obInfos: List<ClazzInfo>): List<String> {
@@ -239,5 +241,30 @@ object ObfuscateInfoMaker {
             str = str.replace(o, b)
         }
         return str
+    }
+
+    fun parametersName(parameters: List<JavaParameter>): Pair<List<JavaParameter>, Map<String, String>> {
+        val copy = parameters.toList()
+        val obNamesMap = mutableMapOf<String, String>()
+        val obNameList = RandomNameHelper.genNames(
+            parameters.size, Pair(2, 5), allLetter = true, isFirstLetter = true
+        )
+        parameters.forEachIndexed { index, javaParameter ->
+            val defaultJavaParameter = javaParameter as? DefaultJavaParameter
+            defaultJavaParameter?.let {
+                val obName = obNameList[index]
+                obNamesMap[it.name] = obName
+                it.name = obName
+            }
+        }
+        return Pair(copy, obNamesMap)
+    }
+
+    fun sourceCode(raw: String, replaceMap: Map<String, String>): String {
+        var obfuscate = raw
+        replaceMap.forEach { (r, o) ->
+            obfuscate = obfuscate.replaceWords(r, o)
+        }
+        return obfuscate
     }
 }
