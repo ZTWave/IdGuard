@@ -100,6 +100,7 @@ fun findCanReplacePair(
         }
 
         //class name
+        //eg. com.littlew.example.pf.ia.C, littlew.example.pf.ia.C, example.pf.ia.C, pf.ia.C, ia.C, C
         if (clazzinfo.parentNode != null) {
             val layerArray = clazzinfo.fullyQualifiedName.split(".")
             val obLayerArray = clazzinfo.fullyObfuscateQualifiedName.split(".")
@@ -111,6 +112,7 @@ fun findCanReplacePair(
             }
         } else {
             replacePair.add(Pair(clazzinfo.rawClazzName, clazzinfo.obfuscateClazzName))
+            replacePair.add(Pair(clazzinfo.fullyQualifiedName, clazzinfo.fullyObfuscateQualifiedName))
         }
 
         //class public protect default field

@@ -295,8 +295,7 @@ open class ClassGuardTask @Inject constructor(
     private fun obfuscateJavaFile(sources: Set<JavaSource>) {
         val obFileNameSourceMap = mutableMapOf<String, String>()
 
-        println("sources size -> ${sources.size}")
-        sources.forEachIndexed { index, javaSource ->
+        sources.forEachIndexed { _, javaSource ->
             val writer = modelWriter(clazzInfoList)
             val oneClazzInfo = javaSource.classes.firstOrNull()
                 ?: throw RuntimeException("this source has no java source")
@@ -307,9 +306,9 @@ open class ClassGuardTask @Inject constructor(
             val newFile =
                 belongFile.parentFile.absolutePath + File.separator + clazzInfo.belongFileObfuscateName + javaFileExtensionName
 
-            //belongFile.delete()
+            //delete original file
+            belongFile.delete()
 
-            println("index -> $index source class -> ${javaSource.classes.map { it.fullyQualifiedName }}")
             writer.writeSource(javaSource)
             obFileNameSourceMap[newFile] = writer.toString()
         }

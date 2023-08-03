@@ -75,7 +75,12 @@ class RandomNameHelper {
                     }
                 nameSb.append(c)
             }
-            return nameSb.toString()
+            val name = nameSb.toString()
+            //if is java key word re-gen
+            if (JavaKeyword.contains(name)) {
+                return genAName(nameLengthMin, nameLengthMax, allLetter, isFirstLetter)
+            }
+            return name
         }
 
     }

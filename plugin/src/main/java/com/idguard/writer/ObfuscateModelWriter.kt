@@ -16,7 +16,7 @@ class ObfuscateModelWriter() : ModelWriter {
 
     var clazzInfos: List<ClazzInfo> = emptyList()
 
-    override fun writeSource(source: JavaSource): ModelWriter? {
+    override fun writeSource(source: JavaSource): ModelWriter {
         debug("do write source -> $source")
         // package statement
         writePackage(source.getPackage())
@@ -116,7 +116,8 @@ class ObfuscateModelWriter() : ModelWriter {
         buffer.indent()
 
         // fields
-        val obfuscateField = ObfuscateInfoMaker.field(cls.fields, corrObfuscateClassInfo.fieldList)
+        val obfuscateField =
+            ObfuscateInfoMaker.field(cls.fields, corrObfuscateClassInfo.fieldList)
         for (javaField in obfuscateField) {
             buffer.newline()
             writeField(javaField)
@@ -132,7 +133,7 @@ class ObfuscateModelWriter() : ModelWriter {
 
         // methods replace
         val obfuscateMethod =
-            ObfuscateInfoMaker.method(
+            ObfuscateInfoMaker.methods(
                 cls.methods,
                 corrObfuscateClassInfo,
                 clazzInfos
@@ -172,9 +173,12 @@ class ObfuscateModelWriter() : ModelWriter {
 
     override fun writeField(field: JavaField): ModelWriter {
         commentHeader(field)
+        //not enum field
         if (!field.isEnumConstant) {
             writeAllModifiers(field.modifiers)
-            buffer.write(field.type.genericCanonicalName)
+            val fieldStr: String = ObfuscateInfoMaker.fieldClazzName(field, clazzInfos)
+            buffer.write(fieldStr)
+//            buffer.write(field.type.genericCanonicalName)
             buffer.write(' ')
         }
         buffer.write(field.name)
@@ -205,7 +209,7 @@ class ObfuscateModelWriter() : ModelWriter {
         return this
     }
 
-    override fun writeConstructor(constructor: JavaConstructor): ModelWriter? {
+    override fun writeConstructor(constructor: JavaConstructor): ModelWriter {
         commentHeader(constructor)
         writeAllModifiers(constructor.modifiers)
         buffer.write(constructor.name)
@@ -225,7 +229,10 @@ class ObfuscateModelWriter() : ModelWriter {
             buffer.write(" throws ")
             val excIter: Iterator<JavaClass> = constructor.exceptions.iterator()
             while (excIter.hasNext()) {
-                buffer.write(excIter.next().genericCanonicalName)
+                val newName =
+                    ObfuscateInfoMaker.exceptionGenericCanonicalName(excIter.next(), clazzInfos)
+                buffer.write(newName)
+//                buffer.write(excIter.next().genericCanonicalName)
                 if (excIter.hasNext()) {
                     buffer.write(", ")
                 }

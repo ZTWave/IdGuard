@@ -89,7 +89,7 @@ object ObfuscateInfoMaker {
 
     fun field(rawFields: List<JavaField>, obfuscateFieldInfo: List<FieldInfo>): List<JavaField> {
         val obfuscateFields = mutableListOf<JavaField>()
-        val copy = rawFields.toList()
+        val copy = rawFields.toSet()
         copy.forEach { javaField ->
             val defaultJavaField = javaField as? DefaultJavaField ?: return@forEach
             val obFiledInfo =
@@ -124,11 +124,11 @@ object ObfuscateInfoMaker {
         return result
     }
 
-    fun method(
+    fun methods(
         methods: List<JavaMethod>,
         currentClazzInfo: ClazzInfo,
         clazzInfos: List<ClazzInfo>
-    ): List<JavaMethod> {
+    ): Set<JavaMethod> {
 
         //find all need replace field
         val needReplaceField = mutableListOf<FieldInfo>()
@@ -137,16 +137,20 @@ object ObfuscateInfoMaker {
         val upperUsefulFields = upperNodes.flatMap { it.fieldList }.filter {
             it.modifier.isEmpty() || it.modifier.contains("public") || it.modifier.contains("protected")
         }
+        //upper nodes fields
         needReplaceField.addAll(upperUsefulFields)
+
+        //current node fields
         needReplaceField.addAll(currentClazzInfo.fieldList)
 
-        val mayImportClassInfo = findImportsClassInfo(currentClazzInfo, clazzInfos)
-        println("r ${currentClazzInfo.fullyQualifiedName} import -> ${mayImportClassInfo.map { it.fullyQualifiedName }}")
-        val replaceMap = findCanReplacePair(currentClazzInfo, mayImportClassInfo)
-        println("r ${currentClazzInfo.fullyQualifiedName} replace map -> $replaceMap")
+        val needReplaceCurrentMethod =
+            currentClazzInfo.methodList.map { Pair(it.rawName, it.obfuscateName) }
 
-        val copy = methods.toList()
-        val result = mutableListOf<JavaMethod>()
+        val mayImportClassInfo = findImportsClassInfo(currentClazzInfo, clazzInfos)
+        val replaceMap = findCanReplacePair(currentClazzInfo, mayImportClassInfo)
+
+        val copy = methods.toSet()
+        val result = mutableSetOf<JavaMethod>()
         copy.forEach {
             val javaMethod = it as? DefaultJavaMethod ?: return@forEach
 
@@ -168,19 +172,31 @@ object ObfuscateInfoMaker {
 
             //source code replace
             if (methodInfo?.isOverride == true && methodInfo.obfuscateName.isNotBlank()) {
+                //super. block
                 javaMethod.sourceCode = javaMethod.sourceCode.replaceWords(
                     "super.${methodInfo.rawName}",
                     "super.${methodInfo.obfuscateName}",
                 )
             }
+            //fields
             needReplaceField.forEach { field ->
                 val raw = field.rawName
                 val obfuscate = field.obfuscateName
                 javaMethod.sourceCode = javaMethod.sourceCode.replaceWords(raw, obfuscate)
             }
+
+            //current class method
+            needReplaceCurrentMethod.forEach { (r, o) ->
+                javaMethod.sourceCode = javaMethod.sourceCode.replaceWords(r, o)
+            }
+
+            //declaration
+            //eg. XXX x = new XXX; replace XXX
             replaceMap.forEach { (raw, obfuscate) ->
                 javaMethod.sourceCode = javaMethod.sourceCode.replaceWords(raw, obfuscate)
             }
+
+
             result.add(javaMethod)
         }
         return result
@@ -260,11 +276,29 @@ object ObfuscateInfoMaker {
         return Pair(copy, obNamesMap)
     }
 
+    /**
+     * for normal method and constructor method
+     * only update method params
+     * @param raw raw method content
+     * @param replaceMap raw : obfuscate replace map
+     */
     fun sourceCode(raw: String, replaceMap: Map<String, String>): String {
         var obfuscate = raw
         replaceMap.forEach { (r, o) ->
             obfuscate = obfuscate.replaceWords(r, o)
         }
         return obfuscate
+    }
+
+    /**
+     * support generic only use string replace
+     */
+    fun fieldClazzName(field: JavaField, clazzInfos: List<ClazzInfo>): String {
+        var obfuscateName = field.type.genericCanonicalName
+        val pairs = sortDescendingClazzInfoQualifiedNamePairs(clazzInfos)
+        pairs.forEach { (o, b) ->
+            obfuscateName = obfuscateName.replace(o, b)
+        }
+        return obfuscateName
     }
 }
