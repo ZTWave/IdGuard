@@ -3,7 +3,8 @@ package com.idguard.writer
 import com.idguard.modal.ClazzInfo
 import com.idguard.modal.FieldInfo
 import com.idguard.utils.RandomNameHelper
-import com.idguard.utils.findCanReplacePair
+import com.idguard.utils.findCanReplaceDotPair
+import com.idguard.utils.findCanReplaceWordPair
 import com.idguard.utils.findImportsClassInfo
 import com.idguard.utils.findUpperNodes
 import com.idguard.utils.replaceWords
@@ -147,7 +148,10 @@ object ObfuscateInfoMaker {
             currentClazzInfo.methodList.map { Pair(it.rawName, it.obfuscateName) }
 
         val mayImportClassInfo = findImportsClassInfo(currentClazzInfo, clazzInfos)
-        val replaceMap = findCanReplacePair(currentClazzInfo, mayImportClassInfo)
+        val replaceMap = findCanReplaceWordPair(currentClazzInfo, mayImportClassInfo)
+
+        //use replace method
+        val replaceClassDotMap = findCanReplaceDotPair(currentClazzInfo, mayImportClassInfo)
 
         val copy = methods.toSet()
         val result = mutableSetOf<JavaMethod>()
@@ -196,6 +200,9 @@ object ObfuscateInfoMaker {
                 javaMethod.sourceCode = javaMethod.sourceCode.replaceWords(raw, obfuscate)
             }
 
+            replaceClassDotMap.forEach { (r, o) ->
+                javaMethod.sourceCode = javaMethod.sourceCode.replace(r, o)
+            }
 
             result.add(javaMethod)
         }

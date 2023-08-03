@@ -1,6 +1,7 @@
 package com.idguard.utils
 
 import com.idguard.modal.ClazzInfo
+import com.idguard.modal.MethodInfo
 
 fun findUpperNodes(rootNode: ClazzInfo, nodes: MutableList<ClazzInfo>) {
     val firstLayerNodes = mutableListOf<ClazzInfo>()
@@ -29,7 +30,7 @@ fun findImportsClassInfo(searchInfo: ClazzInfo, allInfos: List<ClazzInfo>): List
             val assumeModality =
                 classInfo.packageName + "." + clazzLayerNames.take(layer)
                     .joinToString(".")
-            if (classInfo.packageName != searchInfo.packageName) {
+            if (isNotSamePackage(classInfo, searchInfo)) {
                 mayImportsModality.add(assumeModality)
             }
         }
@@ -58,7 +59,7 @@ fun findImportsClassInfo(searchInfo: ClazzInfo, allInfos: List<ClazzInfo>): List
     return mayImportClazzInfo.toList()
 }
 
-fun findCanReplacePair(
+fun findCanReplaceWordPair(
     rootClazzInfo: ClazzInfo,
     importClazzInfo: List<ClazzInfo>
 ): List<Pair<String, String>> {
@@ -112,13 +113,18 @@ fun findCanReplacePair(
             }
         } else {
             replacePair.add(Pair(clazzinfo.rawClazzName, clazzinfo.obfuscateClazzName))
-            replacePair.add(Pair(clazzinfo.fullyQualifiedName, clazzinfo.fullyObfuscateQualifiedName))
+            replacePair.add(
+                Pair(
+                    clazzinfo.fullyQualifiedName,
+                    clazzinfo.fullyObfuscateQualifiedName
+                )
+            )
         }
 
         //class public protect default field
         val methods = clazzinfo.methodList.filterNot {
-            it.modifier.contains("static") || it.modifier.contains("private") ||
-                if (rootClazzInfo.packageName != clazzinfo.packageName) {
+            it.isStatic() || it.modifier.contains("private") ||
+                if (isNotSamePackage(rootClazzInfo, clazzinfo)) {
                     //not same package
                     it.modifier.isEmpty() || it.modifier.contains("protect")
                 } else {
@@ -131,8 +137,8 @@ fun findCanReplacePair(
 
         //class public protect default method
         val fields = clazzinfo.fieldList.filterNot {
-            it.modifier.contains("static") || it.modifier.contains("private") ||
-                if (rootClazzInfo.packageName != clazzinfo.packageName) {
+            it.isStatic() || it.modifier.contains("private") ||
+                if (isNotSamePackage(rootClazzInfo, clazzinfo)) {
                     //not same package
                     it.modifier.isEmpty() || it.modifier.contains("protect")
                 } else {
@@ -145,3 +151,84 @@ fun findCanReplacePair(
     }
     return replacePair.sortedByDescending { it.first.length }
 }
+
+fun findCanReplaceDotPair(
+    currentClazzInfo: ClazzInfo,
+    mayImportClassInfo: List<ClazzInfo>
+): List<Pair<String, String>> {
+    val methodPair = mutableListOf<Pair<String, String>>()
+    val fieldPair = mutableListOf<Pair<String, String>>()
+    mayImportClassInfo.forEach { clazzInfo ->
+        val methods = clazzInfo.methodList
+        methods.forEach methodForEach@{ method: MethodInfo ->
+            if (method.isStatic() || method.obfuscateName.isBlank()) {
+                return@methodForEach
+            }
+            if (isSamePackage(clazzInfo, currentClazzInfo)) {
+                if (method.isSamePackageVisible()) {
+                    methodPair.add(Pair(method.rawName, method.obfuscateName))
+                }
+            } else {
+                //not same package
+                if (method.isNotSamePackageVisible()) {
+                    methodPair.add(Pair(method.rawName, method.obfuscateName))
+                }
+            }
+        }
+
+        val fields = clazzInfo.fieldList
+        fields.forEach methodForEach@{ field ->
+            if (field.isStatic()) {
+                return@methodForEach
+            }
+            if (isSamePackage(clazzInfo, currentClazzInfo)) {
+                if (field.isSamePackageVisible()) {
+                    fieldPair.add(Pair(field.rawName, field.obfuscateName))
+                }
+            } else {
+                //not same package
+                if (field.isNotSamePackageVisible()) {
+                    fieldPair.add(Pair(field.rawName, field.obfuscateName))
+                }
+            }
+        }
+    }
+
+    val resultPair = mutableListOf<Pair<String, String>>()
+    resultPair.addAll(
+        //a.b()
+        methodPair.map { Pair(".${it.first}(", ".${it.second}(") }
+    )
+    resultPair.addAll(
+        //a.b.
+        //maybe replace package name .b. in some times
+        fieldPair.map { Pair(".${it.first}.", ".${it.second}.") }
+    )
+    resultPair.addAll(
+        //a.b;
+        fieldPair.map { Pair(".${it.first};", ".${it.second};") }
+    )
+    resultPair.addAll(
+        //(a.b)
+        fieldPair.map { Pair(".${it.first})", ".${it.second})") }
+    )
+    resultPair.addAll(
+        //(a.b,a.c)
+        fieldPair.map { Pair(".${it.first},", ".${it.second},") }
+    )
+
+    println("class ${currentClazzInfo.fullyQualifiedName} need replace")
+    println(resultPair)
+
+    return resultPair
+}
+
+private fun isSamePackage(
+    clazz1: ClazzInfo,
+    clazz2: ClazzInfo
+) = !isNotSamePackage(clazz1, clazz2)
+
+private fun isNotSamePackage(
+    clazz1: ClazzInfo,
+    clazz2: ClazzInfo
+) = clazz1.packageName != clazz2.packageName

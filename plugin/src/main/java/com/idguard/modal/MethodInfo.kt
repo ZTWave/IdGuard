@@ -1,6 +1,7 @@
 package com.idguard.modal
 
 import com.idguard.utils.elementEquals
+import com.idguard.utils.hasOneOf
 import com.thoughtworks.qdox.model.JavaMethod
 
 data class MethodInfo(
@@ -71,5 +72,16 @@ data class MethodInfo(
 
     fun isStatic(): Boolean {
         return modifier.contains("static")
+    }
+
+    fun isSamePackageVisible(): Boolean {
+        val detectedModifier = listOf("public", "protected") //or no modifier
+        return modifier.hasOneOf(detectedModifier) { s: String, s2: String ->
+            s == s2
+        } || modifier.none { it.startsWith("p") }
+    }
+
+    fun isNotSamePackageVisible(): Boolean {
+        return modifier.contains("public")
     }
 }
