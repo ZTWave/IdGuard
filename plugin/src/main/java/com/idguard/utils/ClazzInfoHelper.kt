@@ -217,8 +217,8 @@ fun findCanReplaceDotPair(
         fieldPair.map { Pair(".${it.first},", ".${it.second},") }
     )
 
-    println("class ${currentClazzInfo.fullyQualifiedName} need replace")
-    println(resultPair)
+    //println("class ${currentClazzInfo.fullyQualifiedName} need replace")
+    //println(resultPair)
 
     return resultPair
 }

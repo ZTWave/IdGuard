@@ -3,6 +3,7 @@ package com.idguard
 import com.idguard.modal.ClazzInfo
 import com.idguard.modal.MethodInfo
 import com.idguard.utils.JavaFileParser.parser
+import com.idguard.utils.MappingOutputHelper
 import com.idguard.utils.RandomNameHelper
 import com.idguard.utils.findLayoutDirs
 import com.idguard.utils.findPackageName
@@ -33,9 +34,8 @@ open class ClassGuardTask @Inject constructor(
         project.projectDir.absolutePath + File.separator + "src" + File.separator + "main" + File.separator + "java" + File.separator
     private val javaFileExtensionName = ".java"
     private val clazzInfoList = mutableListOf<ClazzInfo>()
-    private val funNameMapping = mutableMapOf<String, String>()
-
     private val mappingName = "class_guard_mapping.text"
+
     private fun modelWriter(clazzInfos: List<ClazzInfo>): ObfuscateModelWriter {
         return ObfuscateModelWriter().apply {
             this.clazzInfos = clazzInfos
@@ -88,28 +88,50 @@ open class ClassGuardTask @Inject constructor(
         //替换layout中的自定义view
         updateLayoutXml()
 
-        //printInfos()
-
-        //outputMapping()
+        outputMapping()
     }
 
-    private fun printInfos() {
-        clazzInfoList.forEach {
-            println("${it.modifier} ${it.rawClazzName} extend ${it.extendNode?.fullyQualifiedName} implements ${it.implNodes.map { node -> node.fullyQualifiedName }}")
-            println("parent -> ${it.parentNode?.rawClazzName ?: "null"} ")
-            println("packageName -> ${it.packageName}")
-            println("import -> ${it.imports}")
-            println("fullyQualifiedName -> ${it.fullyQualifiedName} obfuscateQualifiedName -> ${it.fullyObfuscateQualifiedName}")
-            println("file -> ${it.belongFile} belongFileObfuscateName -> ${it.belongFileObfuscateName}")
-            val methodPrint =
-                it.methodList.map { me -> "${me.rawName} -> ${me.obfuscateName} \n ${me.methodBody}" }
-            println("method -> $methodPrint")
-            val fieldsPrint =
-                it.fieldList.map { field -> "${field.rawName} -> ${field.obfuscateName}" }
-            println("fields -> $fieldsPrint")
-            println("class body")
-            println(it.bodyInfo)
-            println()
+    private fun outputMapping() {
+        MappingOutputHelper.clearText(project, mappingName)
+
+        clazzInfoList.forEach { clazzinfo ->
+            MappingOutputHelper.appendNewLan(
+                project,
+                mappingName,
+                "${clazzinfo.fullyQualifiedName} -> ${clazzinfo.fullyObfuscateQualifiedName}"
+            )
+
+            MappingOutputHelper.appendNewLan(
+                project,
+                mappingName,
+                "fields"
+            )
+            clazzinfo.fieldList.forEach { fieldInfo ->
+                MappingOutputHelper.appendNewLan(
+                    project,
+                    mappingName,
+                    "\t ${fieldInfo.rawName} -> ${fieldInfo.obfuscateName}"
+                )
+            }
+
+            MappingOutputHelper.appendNewLan(
+                project,
+                mappingName,
+                "methods"
+            )
+            clazzinfo.methodList.forEach { methodInfo ->
+                MappingOutputHelper.appendNewLan(
+                    project,
+                    mappingName,
+                    "\t ${methodInfo.rawName} -> ${methodInfo.obfuscateName}"
+                )
+            }
+
+            MappingOutputHelper.appendNewLan(
+                project,
+                mappingName,
+                ""
+            )
         }
     }
 

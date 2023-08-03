@@ -21,7 +21,7 @@ import com.thoughtworks.qdox.model.impl.DefaultJavaParameter
 
 object ObfuscateInfoMaker {
     fun imports(rawImports: List<String>, obInfos: List<ClazzInfo>): List<String> {
-        println("ob import $rawImports")
+        //println("ob import $rawImports")
         //build all class maybe import quote names
         val mayImportsModality = mutableMapOf<String, String>()
         obInfos.forEach { clazzinfo ->
@@ -79,7 +79,7 @@ object ObfuscateInfoMaker {
         obfuscate.sortedBy {
             it.length
         }
-        println("af-ob import $obfuscate")
+        //println("af-ob import $obfuscate")
         return obfuscate
     }
 

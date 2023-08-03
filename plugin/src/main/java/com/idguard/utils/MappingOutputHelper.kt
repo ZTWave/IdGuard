@@ -29,5 +29,10 @@ class MappingOutputHelper {
             writer.flush()
             writer.close()
         }
+
+        fun clearText(project: Project, fileName: String){
+            val file = project.file(fileName)
+            file.writeText("")
+        }
     }
 }
