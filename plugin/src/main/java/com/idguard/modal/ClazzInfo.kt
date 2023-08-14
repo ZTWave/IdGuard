@@ -35,6 +35,9 @@ data class ClazzInfo(
      * 混淆后的类名称
      */
     var obfuscateClazzName: String = "",
+
+    var constructors :List<ConstructorInfo>,
+
     /**
      * 参数集合
      */

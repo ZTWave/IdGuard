@@ -8,7 +8,7 @@ data class FieldInfo(
     val rawName: String = "",
     val type: String = "",
     val modifier: List<String> = emptyList(),
-    var obfuscateName: String = ""
+    var obfuscateName: String = "",
 ) {
     fun isCorrespondingJavaField(javaField: JavaField): Boolean {
         return rawName == javaField.name
@@ -27,7 +27,7 @@ data class FieldInfo(
         } || modifier.isEmpty()
     }
 
-    fun isNotSamePackageVisible():Boolean{
+    fun isNotSamePackageVisible(): Boolean {
         return modifier.contains("public")
     }
 }

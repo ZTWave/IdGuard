@@ -2,6 +2,7 @@ package com.idguard.modal
 
 import com.idguard.utils.elementEquals
 import com.idguard.utils.hasOneOf
+import com.idguard.utils.parser
 import com.thoughtworks.qdox.model.JavaMethod
 
 data class MethodInfo(
@@ -11,7 +12,7 @@ data class MethodInfo(
 
     val returnType: String = "",
 
-    val params: List<String> = emptyList(),
+    val params: List<ParamInfo> = emptyList(),
 
     /**
      * 是否是重写方法
@@ -25,7 +26,7 @@ data class MethodInfo(
     /**
      * 需要混淆的标识
      */
-    var needObfuscate: Boolean = false,
+    var needObfuscate: Int = OverrideStatusEnum.UN_CONFIRM,
 
     /**
      * 方法体
@@ -33,16 +34,14 @@ data class MethodInfo(
     val methodBody: String = ""
 ) {
 
-    private fun isSameParams(params1: List<String>, params2: List<String>): Boolean {
+    private fun isSameParams(params1: List<ParamInfo>, params2: List<ParamInfo>): Boolean {
         if (params1.size != params2.size) {
             return false
         }
-        val aParams = params1.map { it.split(" ")[0] }
-        val bParams = params2.map { it.split(" ")[0] }
-        val pSize = aParams.size
+        val pSize = params1.size
         for (i in 0 until pSize) {
-            val p1 = aParams[i]
-            val p2 = bParams[i]
+            val p1 = params1[i].rawFullyQualifiedName
+            val p2 = params2[i].rawFullyQualifiedName
             if (p1 != p2) {
                 return false
             }
@@ -63,8 +62,8 @@ data class MethodInfo(
         return isSameParams(params, info.params)
     }
 
-    fun isCorrespondingJavaMethod(javaMethod: JavaMethod): Boolean {
-        val params2 = javaMethod.parameters.map { "${it.type} ${it.name}" }
+    fun isCorresponding(javaMethod: JavaMethod): Boolean {
+        val params2 = javaMethod.parameters.map { it.parser() }
         return rawName == javaMethod.name
             && modifier.elementEquals(javaMethod.modifiers)
             && isSameParams(params, params2)

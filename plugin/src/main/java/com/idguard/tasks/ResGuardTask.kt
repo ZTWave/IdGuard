@@ -1,4 +1,4 @@
-package com.idguard
+package com.idguard.tasks
 
 import com.idguard.utils.MappingOutputHelper
 import com.idguard.utils.RandomNameHelper

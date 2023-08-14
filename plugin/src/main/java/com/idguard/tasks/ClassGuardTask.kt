@@ -1,16 +1,9 @@
-package com.idguard
+package com.idguard.tasks
 
 import com.idguard.modal.ClazzInfo
+import com.idguard.modal.ConstructorInfo
 import com.idguard.modal.MethodInfo
-import com.idguard.utils.JavaFileParser.parser
-import com.idguard.utils.MappingOutputHelper
-import com.idguard.utils.RandomNameHelper
-import com.idguard.utils.findLayoutDirs
-import com.idguard.utils.findPackageName
-import com.idguard.utils.getRealName
-import com.idguard.utils.javaDirs
-import com.idguard.utils.manifestFile
-import com.idguard.utils.replaceWords
+import com.idguard.utils.*
 import com.idguard.writer.ObfuscateModelWriter
 import com.thoughtworks.qdox.JavaProjectBuilder
 import com.thoughtworks.qdox.model.JavaClass
@@ -22,8 +15,9 @@ import java.io.File
 import javax.inject.Inject
 
 
-open class ClassGuardTask @Inject constructor(
+abstract class ClassGuardTask @Inject constructor(
     private val variantName: String,
+    private val whiteList: List<String>
 ) : DefaultTask() {
 
     init {
@@ -34,11 +28,11 @@ open class ClassGuardTask @Inject constructor(
         project.projectDir.absolutePath + File.separator + "src" + File.separator + "main" + File.separator + "java" + File.separator
     private val javaFileExtensionName = ".java"
     private val clazzInfoList = mutableListOf<ClazzInfo>()
-    private val mappingName = "class_guard_mapping.text"
+    private val mappingName = "class_guard_mapping.txt"
 
     private fun modelWriter(clazzInfos: List<ClazzInfo>): ObfuscateModelWriter {
         return ObfuscateModelWriter().apply {
-            this.clazzInfos = clazzInfos
+            this.projectClazzInfos = clazzInfos
         }
     }
 
@@ -58,17 +52,25 @@ open class ClassGuardTask @Inject constructor(
             addSourceTree(javaSrc)
         }
 
+        println("white list -> $whiteList")
+        println("white list class will not be obfuscate but will update other obfuscate reference!")
+
         //this source to list will cause element repetition problem
         val sources = javaProjectBuilder.sources.toSet()
 
         val allClass = javaProjectBuilder.classes.toSet()
 
-        fillClazzInfoBelongFile(allClass, javaFilesTree)
-        println("class info parent nested class analyze finished.")
+        println("start fill class info...")
+        fillClazzInfo(allClass)
+        println("class info analyze finished.")
 
         println("start find class extend and implements node...")
         relatedClazzNodes(allClass)
         println("class info extend and implement analyze finished.")
+
+        println("start fill obfuscate info...")
+        fillClazzObfuscateInfo(javaFilesTree)
+        println("fill obfuscate info finished")
 
         println("start fill override fun obfuscate name...")
         //find no obfuscate override method name and fill it
@@ -91,6 +93,26 @@ open class ClassGuardTask @Inject constructor(
         outputMapping()
     }
 
+    private fun fillClazzObfuscateInfo(javaSourceFileTree: FileTree) {
+        clazzInfoList.forEach {
+            ClazzInfoObfuscate.fillObfuscateInfo(it, inWhiteList(it))
+        }
+        //fill has belong file obfuscate name
+        javaSourceFileTree.forEach { javaFile ->
+            //this file contain class info
+            val fileClazzInfos = clazzInfoList.filter { it.isBelongThisFile(javaFile) }
+            //find same name class name as this file name
+            val clazzInfo = fileClazzInfos.find { it.rawClazzName == javaFile.getRealName() }
+            //get or gen class info obfuscate name
+            val obfuscateFileName =
+                clazzInfo?.obfuscateClazzName ?: RandomNameHelper.genClassName(Pair(4, 8))
+            //fill belong file obfuscate name
+            fileClazzInfos.forEach { clazzInfo ->
+                clazzInfo.belongFileObfuscateName = obfuscateFileName
+            }
+        }
+    }
+
     private fun outputMapping() {
         MappingOutputHelper.clearText(project, mappingName)
 
@@ -100,6 +122,26 @@ open class ClassGuardTask @Inject constructor(
                 mappingName,
                 "${clazzinfo.fullyQualifiedName} -> ${clazzinfo.fullyObfuscateQualifiedName}"
             )
+
+            MappingOutputHelper.appendNewLan(
+                project,
+                mappingName,
+                "constructors"
+            )
+            clazzinfo.constructors.forEach { constructorInfo: ConstructorInfo ->
+                MappingOutputHelper.appendNewLan(
+                    project,
+                    mappingName,
+                    "\t ${clazzinfo.rawClazzName} -> ${clazzinfo.obfuscateClazzName}"
+                )
+                constructorInfo.params.forEach { params ->
+                    MappingOutputHelper.appendNewLan(
+                        project,
+                        mappingName,
+                        "\t\t param ${params.rawFullyQualifiedName} ${params.rawName} -> ${params.obfuscateName}"
+                    )
+                }
+            }
 
             MappingOutputHelper.appendNewLan(
                 project,
@@ -125,6 +167,13 @@ open class ClassGuardTask @Inject constructor(
                     mappingName,
                     "\t ${methodInfo.rawName} -> ${methodInfo.obfuscateName}"
                 )
+                methodInfo.params.forEach { params ->
+                    MappingOutputHelper.appendNewLan(
+                        project,
+                        mappingName,
+                        "\t\t param ${params.rawFullyQualifiedName} ${params.rawName} -> ${params.obfuscateName}"
+                    )
+                }
             }
 
             MappingOutputHelper.appendNewLan(
@@ -157,7 +206,7 @@ open class ClassGuardTask @Inject constructor(
         }
     }
 
-    private fun fillClazzInfoBelongFile(classList: Set<JavaClass>, javaSourceFileTree: FileTree) {
+    private fun fillClazzInfo(classList: Set<JavaClass>) {
         classList.forEach { javaClass ->
             val clazzInfo = javaClass.parser()
             val packageAbsolutePath =
@@ -196,20 +245,6 @@ open class ClassGuardTask @Inject constructor(
             }
             if (clazzInfo.belongFile == null) {
                 println("error find class in all files -> ${clazzInfo.rawClazzName}")
-            }
-        }
-        //fill has belong file obfuscate name
-        javaSourceFileTree.forEach { javaFile ->
-            //this file contain class info
-            val fileClazzInfos = clazzInfoList.filter { it.isBelongThisFile(javaFile) }
-            //find same name class name as this file name
-            val clazzInfo = fileClazzInfos.find { it.rawClazzName == javaFile.getRealName() }
-            //get or gen class info obfuscate name
-            val obfuscateFileName =
-                clazzInfo?.obfuscateClazzName ?: RandomNameHelper.genClassName(Pair(4, 8))
-            //fill belong file obfuscate name
-            fileClazzInfos.forEach { clazzInfo ->
-                clazzInfo.belongFileObfuscateName = obfuscateFileName
             }
         }
     }
@@ -304,27 +339,16 @@ open class ClassGuardTask @Inject constructor(
         }
     }
 
-    /*private fun outputMapping() {
-        val outputMap = clazzInfoList.map {
-            val info = it.value
-            val raw = info.packageName + "." + info.rawClazzName
-            val obfuscate = info.packageName + "." + info.obfuscateClazzName
-            raw to obfuscate
-        }.toMap()
-        MappingOutputHelper.write(project, mappingName, outputMap)
-    }*/
-
     private fun obfuscateJavaFile(sources: Set<JavaSource>) {
         val obFileNameSourceMap = mutableMapOf<String, String>()
 
         sources.forEachIndexed { _, javaSource ->
             val writer = modelWriter(clazzInfoList)
-            val oneClazzInfo = javaSource.classes.firstOrNull()
-                ?: throw RuntimeException("this source has no java source")
-            val clazzInfo = clazzInfoList.find { it.isCorrespondingJavaClass(oneClazzInfo) }
-            val belongFile =
-                clazzInfo?.belongFile
-                    ?: throw RuntimeException("this class info is null or belong file is null")
+
+            val belongFile = findBelongFileForSource(javaSource)
+            val clazzInfo = clazzInfoList.find { it.isBelongThisFile(belongFile) }
+                ?: throw RuntimeException("can't find exception for file $belongFile")
+
             val newFile =
                 belongFile.parentFile.absolutePath + File.separator + clazzInfo.belongFileObfuscateName + javaFileExtensionName
 
@@ -338,6 +362,39 @@ open class ClassGuardTask @Inject constructor(
         obFileNameSourceMap.forEach { (newFile, source) ->
             File(newFile).writeText(source)
         }
+    }
+
+    private fun inWhiteList(clazzInfo: ClazzInfo): Boolean {
+        val belongFile = clazzInfo.belongFile ?: return false
+        val belongFilePackageName = clazzInfo.packageName + "." + belongFile.name
+        val isJavaFileInWhiteList = whiteList.contains(belongFilePackageName)
+        if (isJavaFileInWhiteList) {
+            //end with .java
+            println("file name -> $belongFilePackageName is white -> $isJavaFileInWhiteList")
+            return true
+        }
+
+        val recursionPackage = mutableListOf<String>()
+        val packageNames = belongFilePackageName.split(".")
+        for (layerIndex in packageNames.size downTo 1) {
+            recursionPackage.add(packageNames.take(layerIndex).joinToString("."))
+        }
+        val packageInWhiteList = recursionPackage.hasOneOf(whiteList, equalBlock = { s, s2 ->
+            s == s2
+        })
+        if (packageInWhiteList) {
+            println("source -> ${clazzInfo.packageName} is white -> $packageInWhiteList")
+            return true
+        }
+        return false
+    }
+
+    private fun findBelongFileForSource(javaSource: JavaSource): File {
+        val oneClazzInfo = javaSource.classes.firstOrNull()
+            ?: throw RuntimeException("this source has no java source")
+        val clazzInfo = clazzInfoList.find { it.isCorrespondingJavaClass(oneClazzInfo) }
+        return clazzInfo?.belongFile
+            ?: throw RuntimeException("this class info is null or belong file is null")
     }
 
     private fun updateLayoutXml() {

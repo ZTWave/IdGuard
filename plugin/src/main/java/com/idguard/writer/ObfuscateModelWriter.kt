@@ -1,28 +1,39 @@
 package com.idguard.writer
 
 import com.idguard.modal.ClazzInfo
+import com.idguard.modal.ConstructorInfo
 import com.thoughtworks.qdox.model.*
 import com.thoughtworks.qdox.model.JavaModuleDescriptor.*
 import com.thoughtworks.qdox.model.expression.AnnotationValue
 import com.thoughtworks.qdox.model.expression.Expression
-import com.thoughtworks.qdox.writer.ModelWriter
 import com.thoughtworks.qdox.writer.impl.IndentBuffer
 
 /**
  * clazzinfos is project's
+ *
+ * use [writeSource] to write source in
+ * use [toString] to get obfuscate source out
  */
-class ObfuscateModelWriter() : ModelWriter {
+class ObfuscateModelWriter {
     val buffer = IndentBuffer()
 
-    var clazzInfos: List<ClazzInfo> = emptyList()
+    /**
+     * 项目中的所有info 用于替换
+     */
+    var projectClazzInfos: List<ClazzInfo> = emptyList()
 
-    override fun writeSource(source: JavaSource): ModelWriter {
+    /**
+     * 是否在白名单内
+     */
+    var inWhiteList = false
+
+    fun writeSource(source: JavaSource) {
         debug("do write source -> $source")
         // package statement
         writePackage(source.getPackage())
 
         // import statement
-        val obfuscateImports = ObfuscateInfoMaker.imports(source.imports, clazzInfos)
+        val obfuscateImports = ObfuscateInfoMaker.imports(source.imports, projectClazzInfos)
         debug("obfuscateImports -> $obfuscateImports")
         for (imprt in obfuscateImports) {
             buffer.write("import ")
@@ -43,10 +54,9 @@ class ObfuscateModelWriter() : ModelWriter {
                 buffer.newline()
             }
         }
-        return this
     }
 
-    override fun writePackage(pckg: JavaPackage?): ModelWriter {
+    private fun writePackage(pckg: JavaPackage?) {
         debug("writePackage -> $pckg")
         if (pckg != null) {
             commentHeader(pckg)
@@ -56,13 +66,12 @@ class ObfuscateModelWriter() : ModelWriter {
             buffer.newline()
             buffer.newline()
         }
-        return this
     }
 
     /**
      * temporary not consider class is annotation
      */
-    override fun writeClass(cls: JavaClass): ModelWriter {
+    private fun writeClass(cls: JavaClass) {
         debug("do write class -> ${cls.fullyQualifiedName}")
 
         commentHeader(cls)
@@ -78,15 +87,15 @@ class ObfuscateModelWriter() : ModelWriter {
             }
         )
         //buffer.write(cls.name)
-        buffer.write(ObfuscateInfoMaker.className(cls, clazzInfos))
+        buffer.write(ObfuscateInfoMaker.className(cls, projectClazzInfos))
 
-        // subclass
+        // superclass
         if (cls.superClass != null) {
             val className = cls.superClass.fullyQualifiedName
             if ("java.lang.Object" != className && "java.lang.Enum" != className) {
                 buffer.write(" extends ")
-                //buffer.write(cls.superClass.genericCanonicalName)s
-                val extendStr = ObfuscateInfoMaker.superClassName(cls.superClass, clazzInfos)
+                //buffer.write(cls.superClass.genericCanonicalName)
+                val extendStr = ObfuscateInfoMaker.superClassName(cls.superClass, projectClazzInfos)
                 buffer.write(extendStr)
             }
         }
@@ -97,7 +106,8 @@ class ObfuscateModelWriter() : ModelWriter {
             val iter: ListIterator<JavaType> = cls.implements.listIterator()
             while (iter.hasNext()) {
                 //buffer.write(iter.next().genericCanonicalName)
-                val implmentStr: String = ObfuscateInfoMaker.implClassName(iter.next(), clazzInfos)
+                val implmentStr: String =
+                    ObfuscateInfoMaker.implClassName(iter.next(), projectClazzInfos)
                 buffer.write(implmentStr)
                 if (iter.hasNext()) {
                     buffer.write(", ")
@@ -107,8 +117,8 @@ class ObfuscateModelWriter() : ModelWriter {
         return writeClassBody(cls)
     }
 
-    private fun writeClassBody(cls: JavaClass): ModelWriter {
-        val corrObfuscateClassInfo = clazzInfos.find { it.isCorrespondingJavaClass(cls) }
+    private fun writeClassBody(cls: JavaClass) {
+        val corrObfuscateClassInfo = projectClazzInfos.find { it.isCorrespondingJavaClass(cls) }
             ?: throw RuntimeException("can't find raw class ${cls.fullyQualifiedName} in given class infos")
 
         buffer.write(" {")
@@ -125,10 +135,14 @@ class ObfuscateModelWriter() : ModelWriter {
 
         // constructors
         val obfuscateConstructor =
-            ObfuscateInfoMaker.constructors(cls.constructors, corrObfuscateClassInfo)
+            ObfuscateInfoMaker.constructors(
+                cls.constructors,
+                corrObfuscateClassInfo,
+                projectClazzInfos
+            )
         for (javaConstructor in obfuscateConstructor) {
             buffer.newline()
-            writeConstructor(javaConstructor)
+            writeConstructor(javaConstructor, corrObfuscateClassInfo.constructors)
         }
 
         // methods replace
@@ -136,11 +150,11 @@ class ObfuscateModelWriter() : ModelWriter {
             ObfuscateInfoMaker.methods(
                 cls.methods,
                 corrObfuscateClassInfo,
-                clazzInfos
+                projectClazzInfos
             )
         for (javaMethod in obfuscateMethod) {
             buffer.newline()
-            writeMethod(javaMethod)
+            writeMethod(javaMethod, corrObfuscateClassInfo)
         }
 
         // inner-classes
@@ -153,10 +167,9 @@ class ObfuscateModelWriter() : ModelWriter {
         buffer.newline()
         buffer.write('}')
         buffer.newline()
-        return this
     }
 
-    override fun writeInitializer(init: JavaInitializer): ModelWriter? {
+    private fun writeInitializer(init: JavaInitializer) {
         if (init.isStatic) {
             buffer.write("static ")
         }
@@ -168,15 +181,15 @@ class ObfuscateModelWriter() : ModelWriter {
         buffer.newline()
         buffer.write('}')
         buffer.newline()
-        return this
+
     }
 
-    override fun writeField(field: JavaField): ModelWriter {
+    private fun writeField(field: JavaField) {
         commentHeader(field)
         //not enum field
         if (!field.isEnumConstant) {
             writeAllModifiers(field.modifiers)
-            val fieldStr: String = ObfuscateInfoMaker.fieldClazzName(field, clazzInfos)
+            val fieldStr: String = ObfuscateInfoMaker.fieldClazzName(field, projectClazzInfos)
             buffer.write(fieldStr)
 //            buffer.write(field.type.genericCanonicalName)
             buffer.write(' ')
@@ -206,16 +219,28 @@ class ObfuscateModelWriter() : ModelWriter {
             buffer.write(';')
         }
         buffer.newline()
-        return this
+
     }
 
-    override fun writeConstructor(constructor: JavaConstructor): ModelWriter {
+    /**
+     * @param constructors this clazz info all constructors
+     */
+    private fun writeConstructor(
+        constructor: JavaConstructor,
+        constructors: List<ConstructorInfo>
+    ) {
         commentHeader(constructor)
         writeAllModifiers(constructor.modifiers)
         buffer.write(constructor.name)
         buffer.write('(')
 
-        val obResult = ObfuscateInfoMaker.parametersName(constructor.parameters)
+        debug("constructor -> ${constructor.name}")
+        debug("params -> ${constructor.parameters}")
+        val obResult = ObfuscateInfoMaker.parametersName(constructor, constructors)
+
+        debug("constructor ob params -> ${obResult.first}")
+        debug("constructor need replaced -> ${obResult.second}")
+
         val obParameter = obResult.first
         val iter: ListIterator<JavaParameter> = obParameter.listIterator()
         while (iter.hasNext()) {
@@ -230,7 +255,10 @@ class ObfuscateModelWriter() : ModelWriter {
             val excIter: Iterator<JavaClass> = constructor.exceptions.iterator()
             while (excIter.hasNext()) {
                 val newName =
-                    ObfuscateInfoMaker.exceptionGenericCanonicalName(excIter.next(), clazzInfos)
+                    ObfuscateInfoMaker.exceptionGenericCanonicalName(
+                        excIter.next(),
+                        projectClazzInfos
+                    )
                 buffer.write(newName)
 //                buffer.write(excIter.next().genericCanonicalName)
                 if (excIter.hasNext()) {
@@ -248,24 +276,24 @@ class ObfuscateModelWriter() : ModelWriter {
         }
         buffer.write('}')
         buffer.newline()
-        return this
     }
 
-    override fun writeMethod(method: JavaMethod): ModelWriter {
+    private fun writeMethod(method: JavaMethod, corrObfuscateClassInfo: ClazzInfo) {
         commentHeader(method)
         writeAccessibilityModifier(method.modifiers)
         writeNonAccessibilityModifiers(method.modifiers)
 
         //buffer.write(method.returnType.genericCanonicalName)
         val returnTypeGenericCanonicalName =
-            ObfuscateInfoMaker.returnTypeName(method.returnType, clazzInfos)
+            ObfuscateInfoMaker.returnTypeName(method.returnType, projectClazzInfos)
         buffer.write(returnTypeGenericCanonicalName)
 
         buffer.write(' ')
         buffer.write(method.name)
         buffer.write('(')
 
-        val obParamsResult = ObfuscateInfoMaker.parametersName(method.parameters)
+        val obParamsResult =
+            ObfuscateInfoMaker.parametersName(method, corrObfuscateClassInfo.methodList)
         val obParams = obParamsResult.first
         val iter: ListIterator<JavaParameter> = obParams.listIterator()
         while (iter.hasNext()) {
@@ -280,7 +308,10 @@ class ObfuscateModelWriter() : ModelWriter {
             val excIter: Iterator<JavaClass> = method.exceptions.iterator()
             while (excIter.hasNext()) {
                 val newName =
-                    ObfuscateInfoMaker.exceptionGenericCanonicalName(excIter.next(), clazzInfos)
+                    ObfuscateInfoMaker.exceptionGenericCanonicalName(
+                        excIter.next(),
+                        projectClazzInfos
+                    )
                 buffer.write(newName)
                 if (excIter.hasNext()) {
                     buffer.write(", ")
@@ -301,7 +332,6 @@ class ObfuscateModelWriter() : ModelWriter {
             buffer.write(';')
             buffer.newline()
         }
-        return this
     }
 
     private fun writeNonAccessibilityModifiers(modifiers: Collection<String>) {
@@ -331,7 +361,7 @@ class ObfuscateModelWriter() : ModelWriter {
         }
     }
 
-    override fun writeAnnotation(annotation: JavaAnnotation): ModelWriter? {
+    private fun writeAnnotation(annotation: JavaAnnotation) {
         buffer.write('@')
         buffer.write(annotation.type.genericCanonicalName)
         if (annotation.propertyMap.isNotEmpty()) {
@@ -353,20 +383,19 @@ class ObfuscateModelWriter() : ModelWriter {
             buffer.deindent()
         }
         buffer.newline()
-        return this
     }
 
-    override fun writeParameter(parameter: JavaParameter): ModelWriter {
+    private fun writeParameter(parameter: JavaParameter) {
         commentHeader(parameter)
         //buffer.write(parameter.genericCanonicalName)
-        val newClassTypeName: String = ObfuscateInfoMaker.parameterTypeName(parameter, clazzInfos)
+        val newClassTypeName: String =
+            ObfuscateInfoMaker.parameterTypeName(parameter, projectClazzInfos)
         buffer.write(newClassTypeName)
         if (parameter.isVarArgs) {
             buffer.write("...")
         }
         buffer.write(' ')
         buffer.write(parameter.name)
-        return this
     }
 
     private fun commentHeader(entity: JavaAnnotatedElement) {
@@ -403,7 +432,7 @@ class ObfuscateModelWriter() : ModelWriter {
         }
     }
 
-    override fun writeModuleDescriptor(descriptor: JavaModuleDescriptor): ModelWriter {
+    private fun writeModuleDescriptor(descriptor: JavaModuleDescriptor) {
         if (descriptor.isOpen) {
             buffer.write("open ")
         }
@@ -434,10 +463,9 @@ class ObfuscateModelWriter() : ModelWriter {
         buffer.deindent()
         buffer.write('}')
         buffer.newline()
-        return this
     }
 
-    override fun writeModuleExports(exports: JavaExports): ModelWriter {
+    private fun writeModuleExports(exports: JavaExports) {
         buffer.write("exports ")
         buffer.write(exports.source.name)
         if (!exports.targets.isEmpty()) {
@@ -453,10 +481,9 @@ class ObfuscateModelWriter() : ModelWriter {
         }
         buffer.write(';')
         buffer.newline()
-        return this
     }
 
-    override fun writeModuleOpens(opens: JavaOpens): ModelWriter {
+    private fun writeModuleOpens(opens: JavaOpens) {
         buffer.write("opens ")
         buffer.write(opens.source.name)
         if (!opens.targets.isEmpty()) {
@@ -472,10 +499,9 @@ class ObfuscateModelWriter() : ModelWriter {
         }
         buffer.write(';')
         buffer.newline()
-        return this
     }
 
-    override fun writeModuleProvides(provides: JavaProvides): ModelWriter? {
+    private fun writeModuleProvides(provides: JavaProvides) {
         buffer.write("provides ")
         buffer.write(provides.service.name)
         buffer.write(" with ")
@@ -489,30 +515,27 @@ class ObfuscateModelWriter() : ModelWriter {
         }
         buffer.write(';')
         buffer.newline()
-        return null
     }
 
-    override fun writeModuleRequires(requires: JavaRequires): ModelWriter {
+    private fun writeModuleRequires(requires: JavaRequires) {
         buffer.write("requires ")
         writeAccessibilityModifier(requires.modifiers)
         writeNonAccessibilityModifiers(requires.modifiers)
         buffer.write(requires.module.name)
         buffer.write(';')
         buffer.newline()
-        return this
     }
 
-    override fun writeModuleUses(uses: JavaUses): ModelWriter {
+    private fun writeModuleUses(uses: JavaUses) {
         buffer.write("uses ")
         buffer.write(uses.service.name)
         buffer.write(';')
         buffer.newline()
-        return this
     }
 
     override fun toString(): String = buffer.toString()
 
     private fun debug(msg: String) {
-        //println(msg)
+        println("model writer -> $msg")
     }
 }

@@ -6,6 +6,16 @@ plugins {
 //    id 'idguard'
 }
 
+//test white list
+//idGuard{
+//    whiteList = [
+//        "com.littlew.example.pc",
+//        "com.littlew.example.pa",
+//        //support single java file
+//        "com.littlew.example.pf.A.java",
+//    ]
+//}
+
 android {
     namespace 'com.littlew.example'
     compileSdk 33

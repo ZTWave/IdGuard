@@ -1,109 +1,94 @@
 package com.idguard.utils
 
 import com.idguard.modal.ClazzInfo
+import com.idguard.modal.ConstructorInfo
 import com.idguard.modal.FieldInfo
 import com.idguard.modal.MethodInfo
+import com.idguard.modal.OverrideStatusEnum
+import com.idguard.modal.ParamInfo
 import com.thoughtworks.qdox.model.JavaClass
+import com.thoughtworks.qdox.model.JavaConstructor
+import com.thoughtworks.qdox.model.JavaParameter
 
-object JavaFileParser {
+//only parser
+fun JavaClass.parser(): ClazzInfo {
+    val clazzname = this.name
+    val isInterface = this.isInterface
+    val isEnum = this.isEnum
 
-    fun JavaClass.parser(): ClazzInfo {
-        val clazzname = this.name
-        val isInterface = this.isInterface
-        val isEnum = this.isEnum
+    val parentJavaSource = parentSource
 
-        val parentJavaSource = parentSource
+    val methods = this.methods.map { javaMethod ->
+        val isOverride = javaMethod.annotations.find {
+            it.type.name.contains("Override")
+        } != null
 
-        val obfuscateClazzName = getOrGenClassObfuscateName(clazzname)
-
-        val methods = this.methods.map { javaMethod ->
-            val isOverride = javaMethod.annotations.find {
-                it.type.name.contains("Override")
-            } != null
-            val obfuscateName = if (isOverride) {
-                //temporary can't identify this method from our project or some library, jars
-                //it will be fill after all java file is transform to clazzInfo
-                ""
-            } else if (javaMethod.modifiers.contains("native")) {
-                //don't obfuscate native method
-                javaMethod.name
-            } else {
-                getOrGenMethodObfuscateName(javaMethod.name)
-            }
-            MethodInfo(
-                modifier = javaMethod.modifiers,
-                rawName = javaMethod.name,
-                returnType = javaMethod.returnType.genericValue,
-                params = javaMethod.parameters.map { "${it.type} ${it.name}" },
-                isOverride = isOverride,
-                obfuscateName = obfuscateName,
-                methodBody = javaMethod.codeBlock
-            )
-        }
-
-        val fields = fields.map { javaField ->
-            val obfuscateName = getOrGenFieldObfuscateName(javaField.name)
-            FieldInfo(
-                modifier = javaField.modifiers,
-                rawName = javaField.name,
-                type = javaField.type.fullyQualifiedName,
-                obfuscateName = obfuscateName
-            )
-        }
-
-        val packageName = packageName
-
-        val implNames = implements.map {
-            it.fullyQualifiedName
-        }
-
-        val extendName = if (superClass == null) {
-            ""
+        val needObfuscate = if (isOverride) {
+            //temporary can't identify this method from our project or some library, jars
+            //it will be fill after all java file is transform to clazzInfo
+            OverrideStatusEnum.UN_CONFIRM
+        } else if (javaMethod.modifiers.contains("native")) {
+            //don't obfuscate native method
+            OverrideStatusEnum.NOT_NEED
         } else {
-            superClass.fullyQualifiedName
+            OverrideStatusEnum.NEED
         }
 
-        val modifier = modifiers
-
-        return ClazzInfo(
-            modifier = modifier,
-            packageName = packageName,
-            rawClazzName = clazzname,
-            fullyQualifiedName = fullyQualifiedName,
-            obfuscateClazzName = obfuscateClazzName,
-            methodList = methods,
-            fieldList = fields,
-            isInterface = isInterface,
-            isEnum = isEnum,
-            implFullQualifiedName = implNames,
-            extendFullQualifiedName = extendName,
-            imports = parentJavaSource.imports,
-            bodyInfo = codeBlock,
+        MethodInfo(
+            modifier = javaMethod.modifiers,
+            rawName = javaMethod.name,
+            returnType = javaMethod.returnType.genericValue,
+            params = javaMethod.parameters.map { it.parser() },
+            isOverride = isOverride,
+            needObfuscate = needObfuscate,
+            methodBody = javaMethod.codeBlock
         )
     }
 
-    /**
-     * raw an obfuscate name cache
-     */
-    private val clazzNameObMap = mutableMapOf<String, String>()
-    private val fieldNameObMap = mutableMapOf<String, String>()
-    private val methodNameObMap = mutableMapOf<String, String>()
-
-    private fun getOrGenClassObfuscateName(rawName: String): String {
-        return clazzNameObMap.getOrPut(rawName) {
-            RandomNameHelper.genClassName(Pair(4, 8))
-        }
+    val fields = fields.map { javaField ->
+        FieldInfo(
+            modifier = javaField.modifiers,
+            rawName = javaField.name,
+            type = javaField.type.fullyQualifiedName,
+        )
     }
 
-    private fun getOrGenFieldObfuscateName(rawName: String): String {
-        return fieldNameObMap.getOrPut(rawName) {
-            RandomNameHelper.genNames(1, Pair(2, 8), false, true).first()
-        }
+    val packageName = packageName
+
+    val implNames = implements.map {
+        it.fullyQualifiedName
     }
 
-    private fun getOrGenMethodObfuscateName(rawName: String): String {
-        return methodNameObMap.getOrPut(rawName) {
-            RandomNameHelper.genNames(1, Pair(4, 12), false, true).first()
-        }
+    val extendName = if (superClass == null) {
+        ""
+    } else {
+        superClass.fullyQualifiedName
     }
+
+    val modifier = modifiers
+
+    return ClazzInfo(
+        modifier = modifier,
+        packageName = packageName,
+        rawClazzName = clazzname,
+        fullyQualifiedName = fullyQualifiedName,
+        methodList = methods,
+        fieldList = fields,
+        isInterface = isInterface,
+        isEnum = isEnum,
+        implFullQualifiedName = implNames,
+        extendFullQualifiedName = extendName,
+        imports = parentJavaSource.imports,
+        bodyInfo = codeBlock,
+        constructors = constructors.map { it.parser() }
+    )
 }
+
+fun JavaParameter.parser() = ParamInfo(
+    type.fullyQualifiedName,
+    name,
+)
+
+fun JavaConstructor.parser() = ConstructorInfo(params = parameters.map {
+    it.parser()
+})

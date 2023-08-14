@@ -1,8 +1,9 @@
 package com.idguard.writer
 
 import com.idguard.modal.ClazzInfo
+import com.idguard.modal.ConstructorInfo
 import com.idguard.modal.FieldInfo
-import com.idguard.utils.RandomNameHelper
+import com.idguard.modal.MethodInfo
 import com.idguard.utils.findCanReplaceDotPair
 import com.idguard.utils.findCanReplaceWordPair
 import com.idguard.utils.findImportsClassInfo
@@ -103,22 +104,66 @@ object ObfuscateInfoMaker {
         return obfuscateFields
     }
 
+    /**
+     * update constructor name and replace current class field name in source code
+     */
     fun constructors(
         constructors: List<JavaConstructor>,
-        corrClassInfo: ClazzInfo
+        currentClazzInfo: ClazzInfo,
+        clazzInfos: List<ClazzInfo>
     ): List<JavaConstructor> {
         val copy = constructors.toList()
         val result = mutableListOf<JavaConstructor>()
-        val name = corrClassInfo.obfuscateClazzName
-        val fields = corrClassInfo.fieldList
+
+        val name = currentClazzInfo.obfuscateClazzName
+        //find all need replace field
+        val needReplaceField = mutableListOf<FieldInfo>()
+        val upperNodes = mutableListOf<ClazzInfo>()
+        findUpperNodes(currentClazzInfo, upperNodes)
+        val upperUsefulFields = upperNodes.flatMap { it.fieldList }.filter {
+            it.modifier.isEmpty() || it.modifier.contains("public") || it.modifier.contains("protected")
+        }
+        //upper nodes fields
+        needReplaceField.addAll(upperUsefulFields)
+
+        //current node fields
+        needReplaceField.addAll(currentClazzInfo.fieldList)
+
+        val needReplaceCurrentMethod =
+            currentClazzInfo.methodList.map { Pair(it.rawName, it.obfuscateName) }
+
+        val mayImportClassInfo = findImportsClassInfo(currentClazzInfo, clazzInfos)
+        val replaceMap = findCanReplaceWordPair(currentClazzInfo, mayImportClassInfo)
+
+        //use replace method
+        val replaceClassDotMap = findCanReplaceDotPair(currentClazzInfo, mayImportClassInfo)
+
         copy.forEach {
             val javaConstructor = it as? DefaultJavaConstructor ?: return@forEach
             javaConstructor.name = name
-            fields.forEach { field ->
-                javaConstructor.sourceCode = javaConstructor.sourceCode.replaceWords(
-                    "this.${field.rawName}",
-                    "this.${field.obfuscateName}"
-                ).replaceWords(field.rawName, field.obfuscateName)
+
+            //fields
+            needReplaceField.forEach { field ->
+                val raw = field.rawName
+                val obfuscate = field.obfuscateName
+                javaConstructor.sourceCode = javaConstructor.sourceCode
+                    .replaceWords("this.${field.rawName}", "this.${field.obfuscateName}")
+                    .replaceWords(raw, obfuscate)
+            }
+
+            //current class method
+            needReplaceCurrentMethod.forEach { (r, o) ->
+                javaConstructor.sourceCode = javaConstructor.sourceCode.replaceWords(r, o)
+            }
+
+            //declaration
+            //eg. XXX x = new XXX; replace XXX
+            replaceMap.forEach { (raw, obfuscate) ->
+                javaConstructor.sourceCode = javaConstructor.sourceCode.replaceWords(raw, obfuscate)
+            }
+
+            replaceClassDotMap.forEach { (r, o) ->
+                javaConstructor.sourceCode = javaConstructor.sourceCode.replace(r, o)
             }
             result.add(javaConstructor)
         }
@@ -161,7 +206,7 @@ object ObfuscateInfoMaker {
             //name
             val methodInfo =
                 currentClazzInfo.methodList.find { method ->
-                    method.isCorrespondingJavaMethod(
+                    method.isCorresponding(
                         javaMethod
                     )
                 }
@@ -266,21 +311,54 @@ object ObfuscateInfoMaker {
         return str
     }
 
-    fun parametersName(parameters: List<JavaParameter>): Pair<List<JavaParameter>, Map<String, String>> {
-        val copy = parameters.toList()
+    /**
+     * for constructor return obfuscate params and the replaced params map
+     */
+    fun parametersName(
+        javaConstructor: JavaConstructor,
+        constructors: List<ConstructorInfo>
+    ): Pair<List<JavaParameter>, Map<String, String>> {
+        val parameters = javaConstructor.parameters.toList()
+        val currentConstructor = constructors.find { it.isCorresponding(javaConstructor) }
+        val currentParams = currentConstructor?.params ?: emptyList()
         val obNamesMap = mutableMapOf<String, String>()
-        val obNameList = RandomNameHelper.genNames(
-            parameters.size, Pair(2, 5), allLetter = true, isFirstLetter = true
-        )
         parameters.forEachIndexed { index, javaParameter ->
             val defaultJavaParameter = javaParameter as? DefaultJavaParameter
-            defaultJavaParameter?.let {
-                val obName = obNameList[index]
-                obNamesMap[it.name] = obName
-                it.name = obName
+            defaultJavaParameter?.let { javaParameter: DefaultJavaParameter ->
+                val obName = currentParams.getOrNull(index)?.obfuscateName
+                obName?.run {
+                    //if find this raw name corresponding obfuscate name add it to map
+                    obNamesMap[javaParameter.name] = this
+                    javaParameter.name = this
+                }
             }
         }
-        return Pair(copy, obNamesMap)
+        return Pair(parameters, obNamesMap)
+    }
+
+    /**
+     * for method return obfuscate params and the replaced params map
+     */
+    fun parametersName(
+        javaMethod: JavaMethod,
+        methods: List<MethodInfo>
+    ): Pair<List<JavaParameter>, Map<String, String>> {
+        val parameters = javaMethod.parameters.toList()
+        val currentConstructor = methods.find { it.isCorresponding(javaMethod) }
+        val currentParams = currentConstructor?.params ?: emptyList()
+        val obNamesMap = mutableMapOf<String, String>()
+        parameters.forEachIndexed { index, javaParameter ->
+            val defaultJavaParameter = javaParameter as? DefaultJavaParameter
+            defaultJavaParameter?.let { javaParameter: DefaultJavaParameter ->
+                val obName = currentParams.getOrNull(index)?.obfuscateName
+                obName?.run {
+                    //if find this raw name corresponding obfuscate name add it to map
+                    obNamesMap[javaParameter.name] = this
+                    javaParameter.name = this
+                }
+            }
+        }
+        return Pair(parameters, obNamesMap)
     }
 
     /**
