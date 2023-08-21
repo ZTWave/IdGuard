@@ -10,6 +10,9 @@ public class BaseActivity extends AppCompatActivity {
 
     private int c = 2;
 
+    //中文注释
+    protected int d;
+
     protected void doOverride() {
         c = 4;
     }
@@ -18,7 +21,7 @@ public class BaseActivity extends AppCompatActivity {
         int a = 2;
     }
 
-    protected void parentMethod(){
+    protected void parentMethod() {
         //do something
     }
 }
