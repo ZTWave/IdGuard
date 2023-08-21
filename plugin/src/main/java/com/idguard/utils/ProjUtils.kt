@@ -1,7 +1,10 @@
 package com.idguard.utils
 
 import com.android.build.gradle.BaseExtension
+import com.android.build.gradle.internal.dsl.BaseAppModuleExtension
 import org.gradle.api.Project
+import org.gradle.api.Task
+import org.gradle.api.internal.artifacts.dependencies.DefaultProjectDependency
 import java.io.File
 
 fun Project.findLayoutDirs(variantName: String) = findDirsInRes(variantName, "layout")
@@ -40,13 +43,15 @@ fun Project.resDirs(variantName: String): List<File> {
 }
 
 fun Project.javaDirs(variantName: String): List<File> {
-    val sourceSet = (extensions.getByName("android") as BaseExtension).sourceSets
+    println("project -> $this  extensions -> ${extensions}")
+    val sourceSet = (project.extensions.getByName("android") as BaseExtension).sourceSets
     val nameSet = mutableSetOf<String>()
     nameSet.add("main")
     if (isAndroidProject()) {
         nameSet.addAll(variantName.splitWords())
     }
     val javaDirs = mutableListOf<File>()
+    println("source set -> ${sourceSet.names}")
     sourceSet.names.forEach { name ->
         if (nameSet.contains(name)) {
             sourceSet.getByName(name).java.srcDirs.mapNotNullTo(javaDirs) {

@@ -61,19 +61,24 @@ open class ResGuardTask @Inject constructor(
             "values",
             "layout",
         )
-        project.files(needReplaceFiles).asFileTree.forEach {
-            if (!needReplaceFileExtensionName.contains(it.getExtensionName())) {
-                //如果不加这个剔除功能 可能会对某些文件有影响
-                return@forEach
+        project.rootProject.subprojects {
+            if (!it.isAndroidProject()) {
+                return@subprojects
             }
-            var text = it.readText()
-            drawableNameMap.forEach { (raw, obfuscate) ->
-                text = text.replaceWords("R.drawable.$raw", "R.drawable.$obfuscate")
-                    .replaceWords("@drawable/$raw", "@drawable/$obfuscate")
-                    .replaceWords("R.mipmap.$raw", "R.mipmap.$obfuscate")
-                    .replaceWords("@mipmap/$raw", "@mipmap/$obfuscate")
+            it.files(needReplaceFiles).asFileTree.forEach { file: File ->
+                if (!needReplaceFileExtensionName.contains(file.getExtensionName())) {
+                    //如果不加这个剔除功能 可能会对某些文件有影响
+                    return@forEach
+                }
+                var text = file.readText()
+                drawableNameMap.forEach { (raw, obfuscate) ->
+                    text = text.replaceWords("R.drawable.$raw", "R.drawable.$obfuscate")
+                        .replaceWords("@drawable/$raw", "@drawable/$obfuscate")
+                        .replaceWords("R.mipmap.$raw", "R.mipmap.$obfuscate")
+                        .replaceWords("@mipmap/$raw", "@mipmap/$obfuscate")
+                }
+                file.writeText(text)
             }
-            it.writeText(text)
         }
         drawableFileTree.forEach {
             val obfuscateFilePath =
@@ -98,23 +103,28 @@ open class ResGuardTask @Inject constructor(
             "values",
             "layout",
         )
-        project.files(needReplaceFiles).asFileTree.forEach {
-            if (!needReplaceFileExtensionName.contains(it.getExtensionName())) {
-                //如果不加这个剔除功能 可能会对某些文件有影响
-                return@forEach
+        project.rootProject.subprojects {
+            if (!it.isAndroidProject()) {
+                return@subprojects
             }
-            var text = it.readText()
-            stringNameMap.forEach { (raw, obfuscate) ->
-                text = text.replaceWords("R.string.$raw", "R.string.$obfuscate")
-                    .replaceWords("@string/$raw", "@string/$obfuscate")
-                    .replaceWords("R.array.$raw", "R.array.$obfuscate")
-                    .replaceWords("<string name=\"$raw\">", "<string name=\"$obfuscate\">")
-                    .replaceWords(
-                        "<string-array name=\"$raw\">",
-                        "<string-array name=\"$obfuscate\">"
-                    )
+            it.files(needReplaceFiles).asFileTree.forEach { file: File ->
+                if (!needReplaceFileExtensionName.contains(file.getExtensionName())) {
+                    //如果不加这个剔除功能 可能会对某些文件有影响
+                    return@forEach
+                }
+                var text = file.readText()
+                stringNameMap.forEach { (raw, obfuscate) ->
+                    text = text.replaceWords("R.string.$raw", "R.string.$obfuscate")
+                        .replaceWords("@string/$raw", "@string/$obfuscate")
+                        .replaceWords("R.array.$raw", "R.array.$obfuscate")
+                        .replaceWords("<string name=\"$raw\">", "<string name=\"$obfuscate\">")
+                        .replaceWords(
+                            "<string-array name=\"$raw\">",
+                            "<string-array name=\"$obfuscate\">"
+                        )
+                }
+                file.writeText(text)
             }
-            it.writeText(text)
         }
     }
 

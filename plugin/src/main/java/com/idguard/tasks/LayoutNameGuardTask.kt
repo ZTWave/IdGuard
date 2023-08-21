@@ -36,8 +36,8 @@ open class LayoutNameGuardTask @Inject constructor(
         }
         //println(layoutDirs)
 
-        val layoutDirFileTree = project.files(layoutDirs).asFileTree
-        val allObsNames = RandomNameHelper.genNames(layoutDirFileTree.files.size)
+        val layoutDirFileTree = project.rootProject.files(layoutDirs).asFileTree
+        val allObsNames = RandomNameHelper.genNames(layoutDirFileTree.files.size, allLetter = true)
         //混淆map生成
         layoutDirFileTree.forEachIndexed { index, file ->
             //println(file)
@@ -57,21 +57,21 @@ open class LayoutNameGuardTask @Inject constructor(
                 needReplaceResFile.addAll(it.findLayoutUsagesInRes(variantName))
             }
         }
-        val needReplaceResFileTree = project.files(needReplaceResFile).asFileTree
-        needReplaceResFileTree.forEach { file ->
-            var fileText = file.readText()
-            layoutROMap.forEach { (raw, obfuscate) ->
-                val rawName = raw.getFileName()
-                val obfuscateName = obfuscate.getFileName()
-//                println("$rawName -> $obfuscateName")
-                //@layout/activity_main
-                fileText = fileText.replaceWords("@layout/$rawName", "@layout/$obfuscateName")
+        project.rootProject.subprojects { project ->
+            if (!project.isAndroidProject()) {
+                return@subprojects
             }
-//            println()
-//            println(file.name)
-//            println(fileText)
-//            println()
-            file.writeText(fileText)
+            val needReplaceResFileTree = project.files(needReplaceResFile).asFileTree
+            needReplaceResFileTree.forEach { file ->
+                var fileText = file.readText()
+                layoutROMap.forEach { (raw, obfuscate) ->
+                    val rawName = raw.getFileName()
+                    val obfuscateName = obfuscate.getFileName()
+                    //@layout/activity_main
+                    fileText = fileText.replaceWords("@layout/$rawName", "@layout/$obfuscateName")
+                }
+                file.writeText(fileText)
+            }
         }
         //混淆layout名称
         val layoutFiles = layoutDirFileTree.files.toSet()
@@ -82,17 +82,22 @@ open class LayoutNameGuardTask @Inject constructor(
             obfuscateFile.writeText(file.readText())
             file.delete()
         }
-        //混淆java 或者 kotlin文件对layout引用
-        val javaFileTree = project.javaDirs(variantName)
-        project.files(javaFileTree).asFileTree.forEach { javaFile ->
-            var javaFileText = javaFile.readText()
-            layoutROMap.forEach { (raw, obfuscate) ->
-                val rawName = raw.getFileName()
-                val obfuscateName = obfuscate.getFileName()
-                javaFileText =
-                    javaFileText.replaceWords("R.layout.$rawName", "R.layout.$obfuscateName")
+        project.rootProject.subprojects { project ->
+            if (!project.isAndroidProject()) {
+                return@subprojects
             }
-            javaFile.writeText(javaFileText)
+            //混淆java 或者 kotlin文件对layout引用
+            val javaFileTree = project.javaDirs(variantName)
+            project.files(javaFileTree).asFileTree.forEach { javaFile ->
+                var javaFileText = javaFile.readText()
+                layoutROMap.forEach { (raw, obfuscate) ->
+                    val rawName = raw.getFileName()
+                    val obfuscateName = obfuscate.getFileName()
+                    javaFileText =
+                        javaFileText.replaceWords("R.layout.$rawName", "R.layout.$obfuscateName")
+                }
+                javaFile.writeText(javaFileText)
+            }
         }
 
         val readableMap = layoutROMap.map {

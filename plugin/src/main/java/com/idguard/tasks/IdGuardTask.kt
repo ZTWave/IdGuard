@@ -33,7 +33,7 @@ open class IdGuardTask @Inject constructor(
                 layoutDirs.addAll(it.findLayoutDirs(variantName))
             }
         }
-        val layoutDirFileTree = project.files(layoutDirs).asFileTree
+        val layoutDirFileTree = project.rootProject.files(layoutDirs).asFileTree
         val nameSet = mutableSetOf<String>()
         layoutDirFileTree.forEach {
             nameSet.addAll(findXMLIds(it))
@@ -55,13 +55,19 @@ open class IdGuardTask @Inject constructor(
             it.writeText(fileText)
         }
 
-        val javaDir = project.javaDirs(variantName)
-        project.files(javaDir).asFileTree.forEach { javaFile ->
-            var javaText = javaFile.readText()
-            idNameMap.forEach { (raw, obfuscate) ->
-                javaText = javaText.replaceWords("R.id.$raw", "R.id.$obfuscate")
+        project.rootProject.subprojects { project ->
+            if (!project.isAndroidProject()) {
+                return@subprojects
             }
-            javaFile.writeText(javaText)
+            val javaDir = project.javaDirs(variantName)
+            println("project $project java dir -> $javaDir")
+            project.files(javaDir).asFileTree.forEach { javaFile ->
+                var javaText = javaFile.readText()
+                idNameMap.forEach { (raw, obfuscate) ->
+                    javaText = javaText.replaceWords("R.id.$raw", "R.id.$obfuscate")
+                }
+                javaFile.writeText(javaText)
+            }
         }
 
         val readableIdMap = idNameMap.map {
