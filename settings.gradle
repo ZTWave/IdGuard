@@ -27,3 +27,4 @@ dependencyResolutionManagement {
 rootProject.name = 'IdGuard'
 include ':example'
 include ':plugin'
+include ':module'
