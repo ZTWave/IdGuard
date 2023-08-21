@@ -153,8 +153,13 @@ open class ResGuardTask @Inject constructor(
                 )
             }
         }
-        dirs.addAll(project.javaDirs(variantName))
-        dirs.add(project.manifestFile())
+        project.rootProject.subprojects { project ->
+            if (!project.isAndroidProject()) {
+                return@subprojects
+            }
+            dirs.addAll(project.javaDirs(variantName))
+            dirs.add(project.manifestFile())
+        }
         return dirs.toList()
     }
 
