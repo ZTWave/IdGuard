@@ -3,7 +3,7 @@ buildscript {
     dependencies {
         classpath "androidx.navigation:navigation-safe-args-gradle-plugin:2.5.3"
         classpath 'com.jakewharton:butterknife-gradle-plugin:10.2.3'
-//        classpath 'com.github.ZTWave:IdGuard:0.3.0'
+//        classpath 'com.github.ZTWave:IdGuard:0.3.1'
     }
 }
 
