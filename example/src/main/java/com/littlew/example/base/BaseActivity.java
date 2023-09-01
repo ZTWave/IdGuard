@@ -10,7 +10,9 @@ public class BaseActivity extends AppCompatActivity {
 
     private int c = 2;
 
-    //中文注释
+    /**
+     * 中文注释
+     */
     protected int d;
 
     protected void doOverride() {

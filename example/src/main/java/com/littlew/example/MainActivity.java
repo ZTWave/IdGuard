@@ -46,6 +46,8 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
 
     public int a = 0;
 
+    public String c, d, e;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
