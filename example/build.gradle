@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId "com.littlew.example"
-        minSdk 23
+        minSdk 26
         targetSdk 33
         versionCode 1
         versionName "1.0"
@@ -53,4 +53,6 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'com.jakewharton:butterknife:10.2.3'
     kapt 'com.jakewharton:butterknife-compiler:10.2.3'
+
+    implementation project(path: ":module")
 }

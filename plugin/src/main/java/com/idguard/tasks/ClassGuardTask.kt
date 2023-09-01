@@ -24,8 +24,6 @@ abstract class ClassGuardTask @Inject constructor(
         group = "guard"
     }
 
-    private val javaSrcPath =
-        project.projectDir.absolutePath + File.separator + "src" + File.separator + "main" + File.separator + "java" + File.separator
     private val javaFileExtensionName = ".java"
     private val clazzInfoList = mutableListOf<ClazzInfo>()
     private val mappingName = "class_guard_mapping.txt"
@@ -41,15 +39,22 @@ abstract class ClassGuardTask @Inject constructor(
      */
     @TaskAction
     fun execute() {
-        val javaFile = project.javaDirs(variantName)
-        val javaFilesTree = project.files(javaFile).asFileTree
-        println("src path -> $javaSrcPath")
-        val javaSrc = File(javaSrcPath)
-        if (!javaSrc.exists()) {
-            throw RuntimeException("java src -> $javaFile is not exits")
+        val javaFile = mutableListOf<File>()
+        project.rootProject.subprojects {
+            if (it.isAndroidProject()) {
+                javaFile.addAll(it.javaDirs(variantName))
+            }
         }
+        val javaFilesTree = project.rootProject.files(javaFile).asFileTree
+
+        val fileSourceMap = mutableMapOf<File, JavaSource>()
+
         val javaProjectBuilder = JavaProjectBuilder().apply {
-            addSourceTree(javaSrc)
+            javaFilesTree.forEach { file ->
+                addSource(file).also {
+                    fileSourceMap[file] = it
+                }
+            }
         }
 
         println("white list -> $whiteList")
@@ -61,7 +66,7 @@ abstract class ClassGuardTask @Inject constructor(
         val allClass = javaProjectBuilder.classes.toSet()
 
         println("start fill class info...")
-        fillClazzInfo(allClass)
+        fillClazzInfo(allClass, fileSourceMap)
         println("class info analyze finished.")
 
         println("start find class extend and implements node...")
@@ -206,46 +211,81 @@ abstract class ClassGuardTask @Inject constructor(
         }
     }
 
-    private fun fillClazzInfo(classList: Set<JavaClass>) {
+    private fun fillClazzInfo(
+        classList: Set<JavaClass>,
+        fileClassMap: MutableMap<File, JavaSource>
+    ) {
         classList.forEach { javaClass ->
             val clazzInfo = javaClass.parser()
-            val packageAbsolutePath =
-                javaSrcPath + clazzInfo.packageName.replaceWords(".", File.separator)
-            //println("filePath -> $packageAbsolutePath")
-            val leftPath = clazzInfo.fullyQualifiedName.replace(clazzInfo.packageName, "")
-            //package name can't same as class name
-            val fileName = leftPath.split(".").filterNot { t -> t.isBlank() }[0]
-            //println("fileName -> $fileName")
-            val sourceFile =
-                File(packageAbsolutePath + File.separator + fileName + javaFileExtensionName)
-            if (sourceFile.exists()) {
-                clazzInfo.belongFile = sourceFile
-                clazzInfoList.add(clazzInfo)
-            } else {
-                //this class not in a java file name class body, find class statement in this path
-                val searchPathFiles = project.files(packageAbsolutePath).asFileTree
-                searchPathFiles.forEach { file ->
-                    val content = file.readText()
-                    val classModifiers = clazzInfo.modifier.joinToString { "" }
-                    val classKey = if (clazzInfo.isEnum) {
-                        "enum"
-                    } else if (clazzInfo.isInterface) {
-                        "interface"
-                    } else {
-                        "class"
-                    }
-                    val classFeatureStr =
-                        "$classModifiers $classKey ${clazzInfo.rawClazzName}".trim()
-                    if (content.contains(classFeatureStr)) {
-                        println("find class feature str -> $classFeatureStr in file -> $file")
-                        clazzInfo.belongFile = file
-                        clazzInfoList.add(clazzInfo)
+
+            println("start find class ${clazzInfo.fullyQualifiedName} belong file")
+
+            var sourceFile: File? = null
+
+            run loopFor@{
+                fileClassMap.forEach { (file, javaSource) ->
+                    if (findJavaSourceWithJavaClass(javaSource, clazzInfo)) {
+                        sourceFile = file
+                        return@loopFor
                     }
                 }
             }
+
+            println("finish find ${clazzInfo.fullyQualifiedName} file -> $sourceFile")
+
+            if (sourceFile == null) {
+                throw RuntimeException("can't find this class ${javaClass.packageName} ${javaClass.name} belong file")
+            }
+
+            clazzInfo.belongFile = sourceFile
+            clazzInfoList.add(clazzInfo)
+
             if (clazzInfo.belongFile == null) {
                 println("error find class in all files -> ${clazzInfo.rawClazzName}")
             }
+        }
+    }
+
+    private fun findJavaSourceWithJavaClass(
+        javaSource: JavaSource,
+        clazzInfo: ClazzInfo
+    ): Boolean {
+        val classes = javaSource.classes.toList()
+        if (classes.find { clazzInfo.isCorrespondingJavaClass(it) } != null) {
+            return true
+        }
+
+        classes.forEach { javaClass ->
+            if (findNestedCorrespondingClass(javaClass, clazzInfo)) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private fun findNestedCorrespondingClass(javaClass: JavaClass, clazzInfo: ClazzInfo): Boolean {
+        val allClass = mutableListOf<JavaClass>()
+        findAllNestedClass(javaClass, allClass)
+
+        allClass.forEach {
+            if (clazzInfo.isCorrespondingJavaClass(it)) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private fun findAllNestedClass(javaClass: JavaClass, allClass: MutableList<JavaClass>) {
+        val layer = mutableListOf<JavaClass>()
+        layer.addAll(javaClass.nestedClasses)
+        if (layer.isEmpty()) {
+            return
+        }
+        allClass.addAll(layer)
+        layer.forEach {
+            findAllNestedClass(it, allClass)
         }
     }
 
@@ -398,8 +438,16 @@ abstract class ClassGuardTask @Inject constructor(
     }
 
     private fun updateLayoutXml() {
-        val layoutDirs = project.findLayoutDirs(variantName)
-        val layoutDirFileTree = project.files(layoutDirs).asFileTree
+
+        val layoutDirs = mutableListOf<File>()
+
+        project.rootProject.subprojects {
+            if (it.isAndroidProject()) {
+                layoutDirs.addAll(it.findLayoutDirs(variantName))
+            }
+        }
+
+        val layoutDirFileTree = project.rootProject.files(layoutDirs).asFileTree
 
         layoutDirFileTree.forEach {
             var content = it.readText()
@@ -414,21 +462,31 @@ abstract class ClassGuardTask @Inject constructor(
     }
 
     private fun updateManifest() {
-        val manifest = project.manifestFile()
-        var manifestContent = manifest.readText()
-        //R path
-        val packagename = project.findPackageName()
+        project.rootProject.subprojects { project ->
+            if (project.isAndroidProject()) {
 
-        clazzInfoList.forEach { info ->
-            val raw = info.packageName + "." + info.rawClazzName
-            val obfuscate = info.packageName + "." + info.obfuscateClazzName
-            manifestContent = manifestContent
-                //eg: .MainActivity
-                .replaceWords(raw, obfuscate)
-                //eg: com.littlew.example.SecondActivity
-                .replaceWords(raw.replace(packagename, ""), obfuscate.replace(packagename, ""))
+                val manifest = project.manifestFile()
+
+                var manifestContent = manifest.readText()
+                //R path
+                val packagename = project.findPackageName()
+
+                clazzInfoList.forEach { info ->
+                    val raw = info.packageName + "." + info.rawClazzName
+                    val obfuscate = info.packageName + "." + info.obfuscateClazzName
+                    manifestContent = manifestContent
+                        //eg: .MainActivity
+                        .replaceWords(raw, obfuscate)
+                        //eg: com.littlew.example.SecondActivity
+                        .replaceWords(
+                            raw.replace(packagename, ""),
+                            obfuscate.replace(packagename, "")
+                        )
+                }
+
+                manifest.writeText(manifestContent)
+            }
         }
-        manifest.writeText(manifestContent)
     }
 
 }
