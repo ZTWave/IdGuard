@@ -16,7 +16,7 @@ repositories {
   maven { url 'https://jitpack.io' }  
 }  
 dependencies {  
-  classpath 'com.github.ZTWave:IdGuard:0.3.0'  
+  classpath 'com.github.ZTWave:IdGuard:0.3.3'  
 }
 ```
 
@@ -49,6 +49,8 @@ idGuard{
 4. `ClassGuard` : 可以把`java`文件夹中的所有`java`文件和对应得 类 函数 变量 形参 进行重命名并更新引用
 
 每个 `task` 执行过后会在根目录下输出`mapping`文件，记得及时备份，以防日后查找需要
+
+`0.3.3` 版本更新后，所有已经全部支持多个module情况
 
 ![GradleTask](https://pic.imgdb.cn/item/64b62c311ddac507ccff507b.jpg)
 
