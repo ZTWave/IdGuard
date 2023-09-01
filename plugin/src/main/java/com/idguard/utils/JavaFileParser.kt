@@ -23,11 +23,17 @@ fun JavaClass.parser(): ClazzInfo {
             it.type.name.contains("Override")
         } != null
 
+        val isJsInterface = javaMethod.annotations.find {
+            it.type.name.contains("JavascriptInterface")
+        } != null
+
+        val isNative = javaMethod.modifiers.contains("native")
+
         val needObfuscate = if (isOverride) {
             //temporary can't identify this method from our project or some library, jars
             //it will be fill after all java file is transform to clazzInfo
             OverrideStatusEnum.UN_CONFIRM
-        } else if (javaMethod.modifiers.contains("native")) {
+        } else if (isNative || isJsInterface) {
             //don't obfuscate native method
             OverrideStatusEnum.NOT_NEED
         } else {
