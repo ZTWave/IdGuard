@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.littlew.example.base.BaseActivity;
 import com.littlew.example.pa.DataA;
+import com.littlew.example.pa.E;
 import com.littlew.example.pb.ObTest;
 import com.littlew.example.pc.ATxtCusView;
 import com.littlew.example.pd.OInterface;
@@ -98,6 +99,10 @@ public class MainActivity extends BaseActivity implements OInterface, OtInterfac
         int a = 3;
 
         App.SPHolder sp = new App.SPHolder(MainActivity.this);
+
+        E ea = E.A;
+        E eb = E.B;
+        E ec = E.C;
     }
 
     @Override
