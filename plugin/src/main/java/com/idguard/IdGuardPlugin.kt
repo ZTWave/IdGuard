@@ -5,6 +5,7 @@ import com.idguard.extension.IdGuardExtension
 import com.idguard.tasks.ClassGuardTask
 import com.idguard.tasks.IdGuardTask
 import com.idguard.tasks.LayoutNameGuardTask
+import com.idguard.tasks.ProguardDicGenTask
 import com.idguard.tasks.ResGuardTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -32,6 +33,11 @@ class IdGuardPlugin : Plugin<Project> {
                     idGuardExtension.whiteList
                 )
             }
+            it.tasks.create(
+                "ProguardDicGen",
+                ProguardDicGenTask::class.java,
+                idGuardExtension.dictCapacity
+            )
         }
     }
 }

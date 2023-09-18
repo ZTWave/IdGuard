@@ -4,4 +4,5 @@ open class IdGuardExtension {
 
     var whiteList = emptyList<String>()
 
+    var dictCapacity = 10000
 }
