@@ -36,7 +36,7 @@ data class ClazzInfo(
      */
     var obfuscateClazzName: String = "",
 
-    var constructors :List<ConstructorInfo>,
+    var constructors: List<ConstructorInfo>,
 
     /**
      * 参数集合
@@ -111,6 +111,14 @@ data class ClazzInfo(
     }
 
     fun obfuscateGenericCanonicalName(): String {
-       return fullyObfuscateQualifiedName.replace('$', '.');
+        return fullyObfuscateQualifiedName.replace('$', '.');
+    }
+
+    fun getClazzCanonicalName(): String {
+        return fullyQualifiedName.replace("${packageName}.", "")
+    }
+
+    fun getObfuscateClazzCanonicalName(): String {
+        return fullyObfuscateQualifiedName.replace("${packageName}.", "")
     }
 }

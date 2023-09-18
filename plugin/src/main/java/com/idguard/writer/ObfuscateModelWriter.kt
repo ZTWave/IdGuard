@@ -7,6 +7,7 @@ import com.thoughtworks.qdox.model.JavaModuleDescriptor.*
 import com.thoughtworks.qdox.model.expression.AnnotationValue
 import com.thoughtworks.qdox.model.expression.Expression
 import com.thoughtworks.qdox.writer.impl.IndentBuffer
+import java.io.File
 
 /**
  * clazzinfos is project's
@@ -14,7 +15,7 @@ import com.thoughtworks.qdox.writer.impl.IndentBuffer
  * use [writeSource] to write source in
  * use [toString] to get obfuscate source out
  */
-class ObfuscateModelWriter {
+class ObfuscateModelWriter : ObfuscateWriter {
     val buffer = IndentBuffer()
 
     /**
@@ -27,7 +28,7 @@ class ObfuscateModelWriter {
      */
     var inWhiteList = false
 
-    fun writeSource(source: JavaSource) {
+    override fun writeSource(file: File, source: JavaSource) {
         debug("do write source -> $source")
         // package statement
         writePackage(source.getPackage())

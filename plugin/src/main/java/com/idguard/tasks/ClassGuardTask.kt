@@ -4,7 +4,8 @@ import com.idguard.modal.ClazzInfo
 import com.idguard.modal.ConstructorInfo
 import com.idguard.modal.MethodInfo
 import com.idguard.utils.*
-import com.idguard.writer.ObfuscateModelWriter
+import com.idguard.writer.ObfuscateModelWriter2
+import com.idguard.writer.ObfuscateWriter
 import com.thoughtworks.qdox.JavaProjectBuilder
 import com.thoughtworks.qdox.model.JavaClass
 import com.thoughtworks.qdox.model.JavaSource
@@ -28,8 +29,8 @@ abstract class ClassGuardTask @Inject constructor(
     private val clazzInfoList = mutableListOf<ClazzInfo>()
     private val mappingName = "class_guard_mapping.txt"
 
-    private fun modelWriter(clazzInfos: List<ClazzInfo>): ObfuscateModelWriter {
-        return ObfuscateModelWriter().apply {
+    private fun modelWriter(clazzInfos: List<ClazzInfo>): ObfuscateWriter {
+        return ObfuscateModelWriter2().apply {
             this.projectClazzInfos = clazzInfos
         }
     }
@@ -99,9 +100,14 @@ abstract class ClassGuardTask @Inject constructor(
     }
 
     private fun fillClazzObfuscateInfo(javaSourceFileTree: FileTree) {
+        //ensure class Name first letter is Uppercase
         clazzInfoList.forEach {
-            ClazzInfoObfuscate.fillObfuscateInfo(it, inWhiteList(it))
+            ClazzInfoObfuscate.fillClassNameObfuscateInfo(it, inWhiteList(it))
         }
+        clazzInfoList.forEach {
+            ClazzInfoObfuscate.fillClassContentObfuscateInfo(it, inWhiteList(it))
+        }
+
         //fill has belong file obfuscate name
         javaSourceFileTree.forEach { javaFile ->
             //this file contain class info
@@ -395,7 +401,7 @@ abstract class ClassGuardTask @Inject constructor(
             //delete original file
             belongFile.delete()
 
-            writer.writeSource(javaSource)
+            writer.writeSource(belongFile, javaSource)
             obFileNameSourceMap[newFile] = writer.toString()
         }
 

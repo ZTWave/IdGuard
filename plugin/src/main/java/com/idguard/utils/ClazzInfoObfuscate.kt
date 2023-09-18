@@ -7,36 +7,37 @@ import com.idguard.modal.OverrideStatusEnum
 object ClazzInfoObfuscate {
     /**
      * raw an obfuscate name cache
+     * not important for is raw name is class or method or field
      */
-    private val clazzNameObMap = mutableMapOf<String, String>()
-    private val fieldAndParamsNameObMap = mutableMapOf<String, String>()
-    private val methodNameObMap = mutableMapOf<String, String>()
+    private val rawObfuscateMap = mutableMapOf<String, String>()
 
     private fun getOrGenClassObfuscateName(rawName: String): String {
-        return clazzNameObMap.getOrPut(rawName) {
+        return rawObfuscateMap.getOrPut(rawName) {
             RandomNameHelper.genClassName(Pair(4, 8))
         }
     }
 
     private fun getOrGenFieldParamsObfuscateName(rawName: String): String {
-        return fieldAndParamsNameObMap.getOrPut(rawName) {
+        return rawObfuscateMap.getOrPut(rawName) {
             RandomNameHelper.genNames(1, Pair(2, 8), false, true).first()
         }
     }
 
     private fun getOrGenMethodObfuscateName(rawName: String): String {
-        return methodNameObMap.getOrPut(rawName) {
+        return rawObfuscateMap.getOrPut(rawName) {
             RandomNameHelper.genNames(1, Pair(4, 12), false, true).first()
         }
     }
 
-    fun fillObfuscateInfo(clazzInfo: ClazzInfo, inWhiteList: Boolean = false) {
+    fun fillClassNameObfuscateInfo(clazzInfo: ClazzInfo, inWhiteList: Boolean = false) {
         clazzInfo.obfuscateClazzName = if (inWhiteList) {
             clazzInfo.rawClazzName
         } else {
             getOrGenClassObfuscateName(clazzInfo.rawClazzName)
         }
+    }
 
+    fun fillClassContentObfuscateInfo(clazzInfo: ClazzInfo, inWhiteList: Boolean) {
         clazzInfo.constructors.onEach { con: ConstructorInfo ->
             con.params.onEach { paramInfo ->
                 paramInfo.obfuscateName = if (inWhiteList) {

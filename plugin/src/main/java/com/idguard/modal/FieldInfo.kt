@@ -9,6 +9,7 @@ data class FieldInfo(
     val type: String = "",
     val modifier: List<String> = emptyList(),
     var obfuscateName: String = "",
+    var isEnumElement: Boolean = false,
 ) {
     fun isCorrespondingJavaField(javaField: JavaField): Boolean {
         return rawName == javaField.name
@@ -18,6 +19,10 @@ data class FieldInfo(
 
     fun isStatic(): Boolean {
         return modifier.contains("static")
+    }
+
+    fun isPrivate(): Boolean {
+        return modifier.contains("private")
     }
 
     fun isSamePackageVisible(): Boolean {

@@ -56,6 +56,7 @@ fun JavaClass.parser(): ClazzInfo {
             modifier = javaField.modifiers,
             rawName = javaField.name,
             type = javaField.type.fullyQualifiedName,
+            isEnumElement = isEnum
         )
     }
 
