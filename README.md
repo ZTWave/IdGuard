@@ -54,6 +54,9 @@ idGuard{
 
 ![GradleTask](https://pic.imgdb.cn/item/64b62c311ddac507ccff507b.jpg)
 
+#### TODO
+目前`classGuard`不支持泛型，也会对arr或者jar调用的同名方法进行替换，基本处于不可用状态！
+
 #### 感谢
 
 [XmlClassGuard](https://github.com/liujingxing/XmlClassGuard),[qbox](https://github.com/paul-hammant/qdox)
