@@ -2,7 +2,7 @@
 buildscript {
     dependencies {
         classpath 'com.jakewharton:butterknife-gradle-plugin:10.2.3'
-//        classpath 'com.github.ZTWave:IdGuard:0.3.6'
+//        classpath 'com.github.ZTWave:IdGuard:0.3.7'
     }
 }
 
