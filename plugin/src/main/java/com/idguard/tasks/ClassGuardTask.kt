@@ -52,6 +52,7 @@ abstract class ClassGuardTask @Inject constructor(
 
         val javaProjectBuilder = JavaProjectBuilder().apply {
             javaFilesTree.forEach { file ->
+                println("add file $file")
                 addSource(file).also {
                     fileSourceMap[file] = it
                 }
