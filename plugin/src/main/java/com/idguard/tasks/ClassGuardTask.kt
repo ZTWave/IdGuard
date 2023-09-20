@@ -398,11 +398,11 @@ abstract class ClassGuardTask @Inject constructor(
             val newFile =
                 belongFile.parentFile.absolutePath + File.separator + clazzInfo.belongFileObfuscateName + javaFileExtensionName
 
-            //delete original file
-            belongFile.delete()
-
             writer.writeSource(belongFile, javaSource)
             obFileNameSourceMap[newFile] = writer.toString()
+
+            //delete original file
+            belongFile.delete()
         }
 
         obFileNameSourceMap.forEach { (newFile, source) ->
